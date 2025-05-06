@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="90" fill="#48bb78" stroke="#2f855a" stroke-width="4"/>
+  <text x="100" y="75" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">REMOTE</text>
+  <text x="100" y="110" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="white">Work Management</text>
+  <text x="100" y="140" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">200 PTS</text>
+</svg> 

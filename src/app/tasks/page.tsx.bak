@@ -1,0 +1,1284 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { modules, tasks as initialTasks, badges, currentUser } from '../../lib/mockData';
+
+// At the top of the file, add a TypeScript declaration for the global window property
+declare global {
+  interface Window {
+    markTaskAsComplete: (taskId: string) => void;
+    clickKolayButton: () => void;
+  }
+}
+
+export default function TasksPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const badgeId = searchParams.get('badgeId');
+  const activeTaskId = searchParams.get('taskId');
+  
+  // State for timer and task completion
+  const [readingTimeRemaining, setReadingTimeRemaining] = useState(0);
+  const [markCompleteDisabled, setMarkCompleteDisabled] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [tooltipTaskId, setTooltipTaskId] = useState<string | null>(null);
+  
+  // Add state for quiz answers and tracking
+  const [quizAnswers, setQuizAnswers] = useState<{[key: number]: number}>({});
+  const [showAnswers, setShowAnswers] = useState<{[key: number]: boolean}>({});
+  
+  // Add state for task filter
+  const [taskFilter, setTaskFilter] = useState('all'); // 'all', 'active', or 'completed'
+  
+  // Store tasks in state to ensure UI updates when completed
+  const [tasksState, setTasksState] = useState(() => {
+    // Make a deep copy to avoid modifying the original
+    return initialTasks.map(task => {
+      // Ensure Start Leave Management task starts as uncompleted
+      if (task.id === 'task1') {
+        return { ...task, completed: false };
+      }
+      return { ...task };
+    });
+  });
+  
+  // Store timerInterval in a ref to persist across renders
+  const timerIntervalRef = useRef(null);
+  
+  // Copy the modules and include their tasks using the updated tasksState
+  const moduleData = useMemo(() => {
+    return modules.map(module => {
+      const relatedBadge = badges.find(badge => badge.id === module.badgeId);
+      return {
+        ...module,
+        tasks: tasksState.filter(task => task.moduleId === module.id),
+        badgeName: relatedBadge?.title || 'Unknown Badge'
+      };
+    });
+  }, [tasksState]);
+  
+  // Filter modules by badge ID if present, but don't show badge UI
+  const filteredModules = useMemo(() => {
+    return badgeId 
+      ? moduleData.filter(module => module.badgeId === badgeId)
+      : moduleData;
+  }, [badgeId, moduleData]);
+
+  // Track which accordions are expanded (default to first one being open)
+  const [expandedModules, setExpandedModules] = useState(() => {
+    return filteredModules.length > 0 ? { [filteredModules[0].id]: true } : {};
+  });
+  
+  // Auto-expand module containing the active task
+  useEffect(() => {
+    if (activeTaskId) {
+      const task = tasksState.find(t => t.id === activeTaskId);
+      if (task) {
+        setExpandedModules(prev => ({
+          ...prev,
+          [task.moduleId]: true
+        }));
+      }
+    }
+  }, [activeTaskId, tasksState]);
+
+  const toggleModule = (moduleId) => {
+    setExpandedModules(prev => ({
+      ...prev,
+      [moduleId]: !prev[moduleId]
+    }));
+  };
+
+  // Make handleToggleTask stable with useCallback to avoid recreating the function
+  const handleToggleTask = useCallback((taskId: string, completed: boolean, fromArticle: boolean = false) => {
+    // In a real app, this would update the task status in the backend
+    console.log(`Toggle task ${taskId} to ${completed}, fromArticle: ${fromArticle}`);
+    
+    // Get task to check its current state
+    const task = tasksState.find(t => t.id === taskId);
+    
+    // For task1 (Start Leave Management), only allow completion via URL click
+    if (taskId === 'task1' && completed && !fromArticle) {
+      console.log('Start Leave Management can only be completed by clicking the Kolay URL');
+      setTooltipTaskId(taskId);
+      setTimeout(() => {
+        setTooltipTaskId(null);
+      }, 3000);
+      return;
+    }
+    
+    // If trying to mark as not completed but it's already completed, prevent it
+    if (!completed && task?.completed) {
+      console.log(`Task ${taskId} is already completed and cannot be marked as incomplete`);
+      
+      // Show tooltip for this task
+      setTooltipTaskId(taskId);
+      
+      // Hide tooltip after 3 seconds
+      setTimeout(() => {
+        setTooltipTaskId(null);
+      }, 3000);
+      
+      return; // Don't allow marking as incomplete
+    }
+    
+    // Get article content to check if this task has reading content
+    const taskArticle = getArticleContent(taskId);
+    
+    // Prevent manually marking tasks with reading time as complete without reading them
+    if (completed && !fromArticle && taskArticle.readingTime > 0) {
+      console.log(`Task ${taskId} can only be completed by reading the article`);
+      
+      // Show tooltip for this task
+      setTooltipTaskId(taskId);
+      
+      // Hide tooltip after 3 seconds
+      setTimeout(() => {
+        setTooltipTaskId(null);
+      }, 3000);
+      
+      return; // Don't allow manual completion
+    }
+    
+    // Prevent marking quiz task as complete manually if not all questions are answered
+    if (completed && !fromArticle && taskArticle.isQuiz) {
+      if (!areAllQuestionsAnswered(taskArticle)) {
+        console.log(`Quiz task ${taskId} can only be completed by answering all questions`);
+        
+        // Show tooltip for this task
+        setTooltipTaskId(taskId);
+        
+        // Hide tooltip after 3 seconds
+        setTimeout(() => {
+          setTooltipTaskId(null);
+        }, 3000);
+        
+        return; // Don't allow manual completion
+      }
+    }
+    
+    // Update tasks state to trigger re-render
+    setTasksState(prevTasks => {
+      const newTasks = prevTasks.map(task => 
+        task.id === taskId ? { ...task, completed } : task
+      );
+      
+      // Check module completion status after task update
+      if (task) {
+        const moduleId = task.moduleId;
+        const moduleTaskIds = initialTasks.filter(t => t.moduleId === moduleId).map(t => t.id);
+        const allTasksCompleted = moduleTaskIds.every(id => {
+          // For the current task we use the new status, for others we check current state
+          if (id === taskId) return completed;
+          const otherTask = newTasks.find(t => t.id === id);
+          return otherTask?.completed;
+        });
+        
+        // Update the module's completion status based on all tasks
+        const moduleIndex = modules.findIndex(m => m.id === moduleId);
+        if (moduleIndex !== -1) {
+          // Only update if the status is changing to avoid unnecessary renders
+          if (modules[moduleIndex].completed !== allTasksCompleted) {
+            modules[moduleIndex].completed = allTasksCompleted;
+            console.log(`Module ${moduleId} completion status: ${allTasksCompleted}`);
+          }
+        }
+      }
+      
+      return newTasks;
+    });
+  }, [tasksState, quizAnswers]);
+  
+  const openTaskDialog = (taskId: string) => {
+    router.push(`/tasks?taskId=${taskId}`);
+  };
+  
+  // Keep this function for other article tasks, but we won't use it for "Start Leave Management"
+  const openArticlePage = (taskId: string) => {
+    router.push(`/tasks/article?taskId=${taskId}`);
+  };
+  
+  const closeTaskDialog = () => {
+    // If there's an active task, clear its timer from localStorage
+    if (activeTask) {
+      try {
+        // Clear any localStorage timer data
+        const storageKey = `article_timer_${activeTask.id}`;
+        localStorage.removeItem(storageKey);
+        
+        // Reset timer state
+        setReadingTimeRemaining(0);
+        setMarkCompleteDisabled(false);
+      } catch (err) {
+        console.error("Error clearing timer:", err);
+      }
+    }
+    
+    // Navigate back to the tasks page
+    router.push('/tasks');
+  };
+  
+  // Function to get badge icon
+  const getBadgeIcon = (badgeId) => {
+    const badge = badges.find(b => b.id === badgeId);
+    const title = badge?.title || '';
+    
+    if (title.toLowerCase().includes('onboarding')) return '🚀';
+    if (title.toLowerCase().includes('performance')) return '📊'; 
+    if (title.toLowerCase().includes('expert')) return '🏆';
+    if (title.toLowerCase().includes('team')) return '👥';
+    if (title.toLowerCase().includes('beginner')) return '🔰';
+    if (title.toLowerCase().includes('leave')) return '📅';
+    return '🎯';
+  };
+  
+  // Check if we're showing task dialog - use tasksState instead of tasks
+  const activeTask = useMemo(() => {
+    return activeTaskId ? tasksState.find(t => t.id === activeTaskId) : null;
+  }, [activeTaskId, tasksState]);
+  
+  // Get article content based on active task
+  const getArticleContent = (taskId) => {
+    switch(taskId) {
+      case 'task1':
+        return {
+          title: "Access Kolay Leave Management System",
+          readingTime: 0, // No reading time for external application
+          isApplication: true, // Mark this as an application type
+          sections: [
+            {
+              heading: "Leave Management System",
+              content: "The Kolay leave management system allows you to request time off, track your leave balance, and manage your leave schedule efficiently."
+            },
+            {
+              heading: "",
+              content: React.createElement('div', { className: 'flex flex-col items-center my-10' },
+                React.createElement('div', { className: 'w-full max-w-md p-8 mx-auto bg-gradient-to-br from-indigo-50 to-white rounded-2xl shadow-lg' }, [
+                  React.createElement('div', { className: 'flex items-center mb-6', key: 'header' }, [
+                    React.createElement('div', { className: 'w-12 h-12 bg-gradient-to-r from-indigo-600 to-blue-500 rounded-full flex items-center justify-center mr-4', key: 'icon' },
+                      React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6 text-white", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" },
+                        React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" })
+                      )
+                    ),
+                    React.createElement('div', { key: 'title' }, [
+                      React.createElement('h3', { className: 'text-lg font-bold text-gray-800', key: 'h3' }, 'Kolay Leave Portal'),
+                      React.createElement('p', { className: 'text-sm text-gray-600', key: 'p' }, 'Manage your time off requests')
+                    ])
+                  ]),
+                  React.createElement('div', { className: 'p-4 bg-white rounded-xl mb-6 shadow-sm', key: 'features' },
+                    React.createElement('ul', { className: 'space-y-2' }, [
+                      React.createElement('li', { className: 'flex items-center text-sm text-gray-700', key: 'item1' }, [
+                        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-green-500 mr-2", viewBox: "0 0 20 20", fill: "currentColor", key: 'svg1' },
+                          React.createElement('path', { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", clipRule: "evenodd" })
+                        ),
+                        'Submit leave requests'
+                      ]),
+                      React.createElement('li', { className: 'flex items-center text-sm text-gray-700', key: 'item2' }, [
+                        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-green-500 mr-2", viewBox: "0 0 20 20", fill: "currentColor", key: 'svg2' },
+                          React.createElement('path', { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", clipRule: "evenodd" })
+                        ),
+                        'Check your leave balance'
+                      ]),
+                      React.createElement('li', { className: 'flex items-center text-sm text-gray-700', key: 'item3' }, [
+                        React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-green-500 mr-2", viewBox: "0 0 20 20", fill: "currentColor", key: 'svg3' },
+                          React.createElement('path', { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z", clipRule: "evenodd" })
+                        ),
+                        'View approval status'
+                      ])
+                    ])
+                  ),
+                  React.createElement('div', { key: 'button-container' },
+                    React.createElement('button', {
+                      onClick: () => {
+                        window.open('https://www.kolayik.com', '_blank');
+                        if (window.markTaskAsComplete) window.markTaskAsComplete('task1');
+                      },
+                      className: 'block w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-center rounded-lg font-medium shadow-md hover:shadow-lg transform hover:translate-y-[-2px] transition-all duration-300',
+                      id: 'kolayLinkBtn'
+                    }, [
+                      'Access Kolay System',
+                      React.createElement('span', { className: 'inline-block ml-2', key: 'arrow' }, '→')
+                    ])
+                  )
+                ])
+              )
+            }
+          ]
+        };
+      case 'task2':
+        return {
+          title: "All About Cars",
+          readingTime: 30, // 30 seconds reading time
+          sections: [
+            {
+              heading: "Types of Cars",
+              content: "Cars come in various shapes and sizes, each designed for specific purposes and driving experiences:\n\n• Sedans: Four-door passenger cars with a separate trunk\n• SUVs: Sport Utility Vehicles offering higher ground clearance and more interior space\n• Hatchbacks: Compact cars with a rear door that opens upward\n• Convertibles: Vehicles with removable or retractable roofs\n• Sports cars: Performance-oriented vehicles designed for speed and handling"
+            },
+            {
+              heading: "Car Maintenance Basics",
+              content: "Regular maintenance is crucial for extending your car's lifespan and ensuring safety. Essential maintenance tasks include:\n\n1. Oil changes every 3,000-5,000 miles\n2. Tire rotation and pressure checks\n3. Brake inspections\n4. Fluid level checks (coolant, brake fluid, transmission fluid)\n5. Air filter replacement\n6. Battery testing"
+            },
+            {
+              heading: "Electric vs. Combustion Engines",
+              content: "The automotive industry is undergoing a major shift from internal combustion engines (ICE) to electric vehicles (EVs):\n\n• ICE vehicles run on fossil fuels like gasoline or diesel\n• EVs are powered by electric motors and rechargeable batteries\n• Hybrid vehicles combine both technologies\n\nElectric vehicles offer benefits such as zero tailpipe emissions, lower operating costs, and instant torque for better acceleration. However, they typically have shorter range and longer refueling times compared to traditional vehicles."
+            },
+            {
+              heading: "Car Buying Tips",
+              content: "# Car Buying Guide\n\n## Research\nBefore visiting dealerships, research models that fit your needs and budget. Consider factors like fuel economy, safety ratings, and reliability scores.\n\n## Test Drive\nAlways test drive a vehicle before purchasing. Pay attention to:\n- Comfort and ergonomics\n- Visibility and blind spots\n- Acceleration and braking feel\n- Noise levels and ride quality\n\n## Negotiation\nNever accept the first price offered. Compare prices across multiple dealerships and be prepared to walk away if the deal doesn't meet your expectations.\n\n## Financing\nUnderstand all terms of the financing agreement, including interest rates, loan duration, and any additional fees. Consider getting pre-approved for a loan from your bank before visiting the dealership."
+            }
+          ]
+        };
+      case 'task3':
+        return {
+          title: "Sick Leave Procedures Quiz",
+          readingTime: 0, // Remove reading time for quiz
+          isQuiz: true, // Mark this as a quiz
+          questions: [
+            {
+              question: "How soon should an employee notify their manager when taking sick leave?",
+              options: [
+                "Within one hour of their scheduled start time",
+                "At least 24 hours in advance",
+                "Within three days",
+                "Only if they will be absent for more than one day"
+              ],
+              correctAnswer: 0,
+              explanation: "Our policy requires notification within one hour of your scheduled start time at the latest."
+            },
+            {
+              question: "When is a medical certificate required?",
+              options: [
+                "For any sick leave",
+                "For sick leave lasting more than three consecutive workdays",
+                "Only for sick leave longer than a week",
+                "Only when requested by a manager"
+              ],
+              correctAnswer: 1,
+              explanation: "A medical certificate is required for sick leave lasting more than three consecutive workdays."
+            },
+            {
+              question: "How much sick leave do full-time employees accrue per month?",
+              options: [
+                "Half a day",
+                "One day",
+                "Two days",
+                "Three days"
+              ],
+              correctAnswer: 1,
+              explanation: "Full-time employees accrue sick leave at a rate of 1 day per month."
+            }
+          ],
+          sections: [
+            {
+              heading: "Notification Requirements",
+              content: "When an employee needs to take sick leave, they should notify their manager as soon as possible, preferably before their scheduled start time. Our policy requires notification within one hour of your scheduled start time at the latest."
+            },
+            {
+              heading: "Documentation",
+              content: "For sick leave lasting more than three consecutive workdays, a medical certificate from a healthcare provider is required. This document should be submitted to HR within one week of returning to work.\n\nThe certificate should include:\n• Dates of absence\n• General nature of illness (detailed diagnosis not required)\n• Healthcare provider's signature and contact information"
+            },
+            {
+              heading: "Return-to-Work Process",
+              content: "After an absence of more than five consecutive workdays, employees must complete a brief return-to-work meeting with their manager. This meeting will:\n\n1. Discuss any necessary workplace accommodations\n2. Update the employee on work missed during their absence\n3. Establish a plan for catching up on time-sensitive tasks\n4. Review any changes to the employee's workload or responsibilities"
+            },
+            {
+              heading: "Sick Leave Accrual",
+              content: "Full-time employees accrue sick leave at a rate of 1 day per month, with a maximum accrual of 15 days per year. Unused sick leave can be carried over to the following year, up to a maximum balance of 30 days.\n\nSick leave accrual begins from the first day of employment, but cannot be used until after the 90-day probationary period. Part-time employees accrue sick leave on a pro-rated basis according to their regular working hours."
+            }
+          ]
+        };
+      case 'task4':
+        return {
+          title: "Advanced Leave Management Overview",
+          readingTime: 45, // 45 seconds reading time
+          sections: [
+            {
+              heading: "Leave Management Frameworks",
+              content: "Advanced leave management goes beyond basic time-off tracking to create comprehensive frameworks that support organizational goals:\n\n• Strategic leave planning aligned with business cycles\n• Data-driven absence management\n• Integration with workforce planning\n• Policy standardization across departments and regions\n• Compliance with evolving regulations\n\nEffective frameworks balance employee wellbeing with operational requirements while maintaining legal compliance."
+            },
+            {
+              heading: "Leave Types and Categories",
+              content: "Modern organizations support diverse leave categories to address various employee needs:\n\n1. Statutory leaves (mandated by law)\n   - Annual/vacation leave\n   - Sick/medical leave\n   - Parental leave (maternity, paternity, adoption)\n   - Bereavement leave\n\n2. Discretionary leaves (organization policy)\n   - Personal days\n   - Study/education leave\n   - Sabbaticals\n   - Mental health days\n   - Volunteering time off\n\n3. Special case leaves\n   - Long-term illness\n   - Unpaid leave of absence\n   - Emergency leave\n   - Jury duty/civic responsibilities"
+            },
+            {
+              heading: "Technology in Leave Management",
+              content: "Modern leave management relies on technology solutions to streamline processes:\n\n• Self-service portals for leave requests and approvals\n• Automated calculation of leave balances and entitlements\n• Calendar integrations for team visibility\n• Mobile applications for on-the-go management\n• Reporting and analytics for absence patterns\n• Integration with payroll and HRIS systems\n\nThe right technology reduces administrative burden while improving accuracy and compliance."
+            },
+            {
+              heading: "Global Considerations",
+              content: "Organizations operating in multiple countries must navigate complex leave requirements:\n\n## Regional Variations\nLeave entitlements vary significantly between countries, with European nations typically offering more generous statutory leave than the US or Asia.\n\n## Cultural Factors\nDifferent attitudes toward work-life balance influence leave practices. For example:\n- Some cultures value presence over productivity\n- Others prioritize efficiency and output over hours worked\n- Religious observances may require specific leave accommodations\n\n## Compliance Challenges\nMultinational companies must maintain policies that:\n- Meet minimum statutory requirements in each location\n- Provide equitable treatment across regions\n- Respect local customs while maintaining organizational standards\n- Adapt to frequent regulatory changes"
+            }
+          ]
+        };
+      case 'task6':
+        return {
+          title: "Company Equipment Policy",
+          readingTime: 35, // 35 seconds reading time
+          sections: [
+            {
+              heading: "Equipment Assignment",
+              content: "All employees are assigned necessary equipment to perform their job duties. This may include laptops, monitors, keyboards, mice, headsets, and other peripherals based on job requirements. Equipment assignments are documented in our asset management system."
+            },
+            {
+              heading: "Proper Use Guidelines",
+              content: "Company equipment should be used primarily for business purposes. Limited personal use is permitted as long as it:\n\n• Does not interfere with work performance\n• Does not incur additional costs\n• Does not violate company policies or laws\n• Does not compromise security\n\nInstallation of unauthorized software is prohibited without prior IT approval."
+            },
+            {
+              heading: "Care and Maintenance",
+              content: "Employees are responsible for maintaining their assigned equipment in good condition. This includes:\n\n• Keeping food and drinks away from electronics\n• Using protective cases during transport\n• Following proper shutdown procedures\n• Reporting damages or issues promptly to IT support\n• Performing regular software updates as prompted"
+            },
+            {
+              heading: "Return Procedures",
+              content: "Upon termination of employment or when equipment is no longer needed, all company property must be returned in good working condition, allowing for normal wear and tear. Employees will complete an equipment return form and receive confirmation once all items have been properly returned and inspected."
+            }
+          ]
+        };
+      case 'task8':
+        return {
+          title: "Remote Work Guidelines",
+          readingTime: 50, // 50 seconds reading time
+          sections: [
+            {
+              heading: "Eligibility and Approval",
+              content: "Remote work arrangements are available to employees whose job duties can be performed effectively outside the office. To request remote work:\n\n1. Submit a formal request to your manager\n2. Complete the Remote Work Assessment form\n3. Await approval from department head and HR\n\nRequests are evaluated based on job suitability, performance history, and business needs."
+            },
+            {
+              heading: "Work Schedule and Availability",
+              content: "Remote employees must:\n\n• Maintain their regular work schedule unless otherwise approved\n• Be available during core business hours (9:00 AM - 3:00 PM)\n• Attend all required virtual meetings\n• Respond to communications within established timeframes (1 hour for urgent matters, 4 hours for standard inquiries)\n• Update calendar and status indicators to reflect availability"
+            },
+            {
+              heading: "Home Office Requirements",
+              content: "Remote employees must establish a dedicated workspace that is:\n\n• Free from excessive noise and distractions\n• Ergonomically sound with proper seating and desk setup\n• Equipped with secure, reliable internet connection (minimum 50 Mbps download/10 Mbps upload)\n• Compliant with basic safety standards\n\nThe company provides a one-time $500 stipend for home office setup upon approval of remote work arrangement."
+            },
+            {
+              heading: "Security Protocols",
+              content: "To maintain data security while working remotely:\n\n• Use company VPN for all work activities\n• Enable two-factor authentication for all systems\n• Lock devices when not in use\n• Never use public Wi-Fi without VPN protection\n• Store sensitive documents only on approved cloud storage\n• Report security incidents immediately to IT security team"
+            }
+          ]
+        };
+      default:
+        return {
+          title: "Task Information",
+          readingTime: 0, // No reading time for default
+          sections: [
+            {
+              heading: "Task Details",
+              content: "Please select a specific task to view the relevant information and instructions for completing it."
+            }
+          ]
+        };
+    }
+  };
+  
+  // Define article after getArticleContent is defined
+  const article = useMemo(() => {
+    return activeTask ? getArticleContent(activeTask.id) : null;
+  }, [activeTask]);
+  
+  // Add a function to check if all quiz questions have been answered
+  const areAllQuestionsAnswered = (article) => {
+    if (!article || !article.isQuiz) return false;
+    return article.questions.every((_, index) => quizAnswers[index] !== undefined);
+  };
+  
+  // Timer logic with timestamp approach and error handling
+  useEffect(() => {
+    try {
+      if (!article || !activeTask) return;
+      
+      // If it's a quiz, only enable completion when all questions are answered
+      if (article.isQuiz) {
+        setReadingTimeRemaining(0);
+        setMarkCompleteDisabled(!areAllQuestionsAnswered(article));
+        return;
+      }
+      
+      // Check if task is already completed
+      if (activeTask.completed) {
+        setMarkCompleteDisabled(false);
+        setReadingTimeRemaining(0);
+        return;
+      }
+      
+      // Check localStorage for existing timer
+      const storageKey = `article_timer_${activeTask.id}`;
+      let storedTimerData;
+      
+      try {
+        storedTimerData = localStorage.getItem(storageKey);
+      } catch (err) {
+        console.error("Error accessing localStorage:", err);
+        // Continue without localStorage
+      }
+      
+      let startTime: number;
+      
+      if (storedTimerData) {
+        // Resume existing timer
+        startTime = parseInt(storedTimerData, 10);
+      } else if (article.readingTime > 0) {
+        // Start new timer
+        startTime = Date.now();
+        try {
+          localStorage.setItem(storageKey, startTime.toString());
+        } catch (err) {
+          console.error("Error saving to localStorage:", err);
+          // Continue without localStorage
+        }
+        setMarkCompleteDisabled(true);
+      } else {
+        // No reading time required
+        setMarkCompleteDisabled(false);
+        return;
+      }
+      
+      // Calculate time elapsed and remaining
+      const totalDuration = article.readingTime * 1000; // convert to ms
+      const updateTimer = () => {
+        try {
+          const now = Date.now();
+          const elapsed = now - startTime;
+          const remaining = Math.max(0, Math.ceil((totalDuration - elapsed) / 1000));
+          
+          setReadingTimeRemaining(remaining);
+          
+          // If timer complete
+          if (elapsed >= totalDuration) {
+            setMarkCompleteDisabled(false);
+            
+            // Auto-complete any task when reading is finished
+            if (!activeTask.completed && article.readingTime > 0) {
+              handleToggleTask(activeTask.id, true, true);
+            }
+            
+            // Clear localStorage timer
+            try {
+              localStorage.removeItem(storageKey);
+            } catch (err) {
+              console.error("Error removing from localStorage:", err);
+            }
+            return true; // timer complete
+          }
+          return false; // timer not complete
+        } catch (error) {
+          console.error("Error updating timer:", error);
+          return true; // Stop the timer on error
+        }
+      };
+      
+      // Do initial update
+      const isComplete = updateTimer();
+      if (isComplete) return;
+      
+      // Set up interval for updates
+      const intervalId = setInterval(() => {
+        try {
+          const isComplete = updateTimer();
+          if (isComplete) {
+            clearInterval(intervalId);
+          }
+        } catch (error) {
+          console.error("Error in timer interval:", error);
+          clearInterval(intervalId);
+        }
+      }, 500);
+      
+      return () => {
+        clearInterval(intervalId);
+      };
+    } catch (error) {
+      console.error("Error in timer effect:", error);
+      setHasError(true);
+    }
+  }, [article, activeTask, handleToggleTask, quizAnswers]);
+  
+  // Reset error state when article changes
+  useEffect(() => {
+    setHasError(false);
+  }, [activeTaskId]);
+  
+  // Function to handle errors gracefully
+  const handleErrorReturn = () => {
+    router.push('/');
+  };
+  
+  const handleTryAgain = () => {
+    setHasError(false);
+    router.push(`/tasks?taskId=${activeTaskId}`);
+  };
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // No need to clean up interval as it's handled in the timer effect
+    };
+  }, []);
+
+  // Add state to track if Kolay link has been clicked
+  const [kolayLinkClicked, setKolayLinkClicked] = useState<{[taskId: string]: boolean}>({});
+
+  // Update the useEffect that handles the Kolay link click
+  useEffect(() => {
+    console.log('Setting up markTaskAsComplete function in global window object');
+    
+    // Make the toggle function available globally for the Kolay link
+    window.markTaskAsComplete = (taskId) => {
+      console.log(`markTaskAsComplete called with taskId: ${taskId}`);
+      handleToggleTask(taskId, true, true);
+      // Set that the link has been clicked
+      setKolayLinkClicked(prev => {
+        console.log(`Setting kolayLinkClicked for ${taskId} to true`);
+        return {...prev, [taskId]: true};
+      });
+    };
+    
+    // Add a debug helper function that can be called from console
+    window.clickKolayButton = () => {
+      console.log('Debug: Simulating Kolay button click from console');
+      window.markTaskAsComplete('task1');
+    };
+    
+    // Verify the function is set up
+    console.log('window.markTaskAsComplete is now:', typeof window.markTaskAsComplete);
+    console.log('window.clickKolayButton is now:', typeof window.clickKolayButton);
+
+    // Clean up on unmount
+    return () => {
+      console.log('Removing global functions from window object');
+      delete window.markTaskAsComplete;
+      delete window.clickKolayButton;
+    };
+  }, [handleToggleTask]);
+
+  return (
+    <div className="h-screen grid grid-cols-[240px_1fr] grid-rows-[64px_1fr]">
+      {/* Top Left: Logo and Brand */}
+      <div className="bg-white px-6 flex items-center border-b border-r border-gray-200">
+        <div className="flex items-center">
+          <div className="h-8 w-8 bg-indigo-600 rounded flex items-center justify-center mr-2">
+            <span className="text-white font-bold text-lg">K</span>
+          </div>
+          <span className="font-semibold text-gray-800">Kolayers</span>
+        </div>
+      </div>
+      
+      {/* Top Right: Tasks Info */}
+      <div className="bg-white px-6 flex items-center justify-between border-b border-gray-200 h-20">
+        <div className="text-left">
+          <div className="text-xl font-bold text-indigo-800">Tasks</div>
+          <div className="text-sm text-gray-600">Complete tasks within modules to earn badges</div>
+        </div>
+        
+        {/* Task Filter */}
+        <div className="flex items-center bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setTaskFilter('all')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              taskFilter === 'all' 
+                ? 'bg-white text-indigo-700 shadow-sm' 
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setTaskFilter('active')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              taskFilter === 'active' 
+                ? 'bg-white text-indigo-700 shadow-sm' 
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setTaskFilter('completed')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              taskFilter === 'completed' 
+                ? 'bg-white text-indigo-700 shadow-sm' 
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Completed
+          </button>
+        </div>
+      </div>
+      
+      {/* Left: Navigation Menu */}
+      <div className="bg-white border-r border-gray-200 py-6 flex flex-col">
+        <nav className="flex-1">
+          <ul className="space-y-1 px-3">
+            <li>
+              <Link 
+                href="/dashboard" 
+                className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/badges" 
+                className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                </svg>
+                Badges
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/tasks" 
+                className="flex items-center px-4 py-2.5 text-sm rounded-lg bg-indigo-50 text-indigo-600 font-medium"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                </svg>
+                Tasks
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/certificates" 
+                className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                </svg>
+                Certificates
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/rewards" 
+                className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                </svg>
+                Rewards
+              </Link>
+            </li>
+          </ul>
+        </nav>
+      </div>
+      
+      {/* Right: Content Area */}
+      <div className="bg-gray-50 overflow-auto p-6">
+        <div className="space-y-3">
+          {filteredModules.map(module => {
+            // Filter tasks based on the selected filter
+            const filteredTasks = module.tasks.filter(task => {
+              if (taskFilter === 'all') return true;
+              if (taskFilter === 'active') return !task.completed;
+              if (taskFilter === 'completed') return task.completed;
+              return true; // Default fallback
+            });
+            
+            // Only show modules that have tasks matching the filter
+            if (filteredTasks.length === 0) return null;
+            
+            return (
+              <div key={module.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                {/* Accordion Header - Clickable */}
+                <button 
+                  className="w-full p-5 flex items-center justify-between transition-colors hover:bg-gray-50 focus:outline-none"
+                  onClick={() => toggleModule(module.id)}
+                  aria-expanded={expandedModules[module.id]}
+                >
+                  <div className="flex items-center">
+                    <div className={`w-10 h-10 rounded-full mr-4 flex items-center justify-center ${
+                      module.completed ? 'bg-green-100' : 'bg-indigo-100'
+                    }`}>
+                      <svg className={`w-5 h-5 ${module.completed ? 'text-green-600' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                      </svg>
+                    </div>
+                    
+                    <div className="text-left">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-gray-900">{module.title}</h2>
+                        <div className="flex items-center bg-indigo-50 px-2 py-0.5 rounded-md">
+                          <span className="text-indigo-600 mr-1.5">{getBadgeIcon(module.badgeId)}</span>
+                          <span className="text-xs font-medium text-indigo-700">{module.badgeName}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center mt-1">
+                        <div className={`text-xs px-2.5 py-1 rounded-full font-medium mr-3 ${
+                          module.completed ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {module.completed ? 'Completed' : 'In Progress'}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {module.tasks.filter(t => t.completed).length} of {module.tasks.length} tasks completed
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress and Expand/Collapse Icon */}
+                  <div className="flex items-center">
+                    {/* Small Progress Circle */}
+                    <div className="mr-4 relative w-8 h-8">
+                      <svg className="w-8 h-8 transform -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="16" fill="none" stroke="#e5e7eb" strokeWidth="3"></circle>
+                        <circle 
+                          cx="18" 
+                          cy="18" 
+                          r="16" 
+                          fill="none" 
+                          stroke={module.completed ? "#10b981" : "#6366f1"}
+                          strokeWidth="3" 
+                          strokeDasharray={100} 
+                          strokeDashoffset={100 - ((module.tasks.filter(t => t.completed).length / module.tasks.length) * 100)}
+                          strokeLinecap="round"
+                        ></circle>
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
+                        {Math.round((module.tasks.filter(t => t.completed).length / module.tasks.length) * 100)}%
+                      </div>
+                    </div>
+                    
+                    {/* Chevron */}
+                    <svg 
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                        expandedModules[module.id] ? 'transform rotate-180' : ''
+                      }`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24" 
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </div>
+                </button>
+                
+                {/* Accordion Content - Tasks */}
+                <div 
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    expandedModules[module.id] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="border-t border-gray-100">
+                    {/* Tasks List */}
+                    <div className="divide-y divide-gray-50">
+                      {filteredTasks.map(task => (
+                        <div 
+                          key={task.id} 
+                          className={`p-4 hover:bg-gray-50 transition-colors duration-150 ease-in-out ${
+                            task.completed ? 'bg-gray-50/50' : ''
+                          } ${activeTaskId === task.id ? 'bg-indigo-50/70' : ''} ${
+                            task.id === 'task1' ? 'relative' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <button
+                              className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border border-gray-300 flex items-center justify-center
+                                ${task.completed 
+                                  ? 'bg-indigo-500 border-indigo-500 text-white hover:bg-indigo-600' 
+                                  : task.id === 'task1'
+                                    ? 'border-blue-400 hover:bg-blue-50'
+                                    : 'hover:border-indigo-400 hover:bg-indigo-50'
+                                } transition-all duration-200 relative`}
+                              onClick={() => handleToggleTask(task.id, !task.completed)}
+                              aria-label={task.completed ? "Mark as incomplete" : "Mark as complete"}
+                            >
+                              {task.completed && (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                              
+                              {/* Tooltip for tasks that require article reading */}
+                              {tooltipTaskId === task.id && (
+                                <div className="absolute left-7 top-0 z-10 w-64 bg-gray-800 text-white text-xs rounded py-2 px-3 shadow-lg">
+                                  {task.completed 
+                                    ? "Once completed, a task cannot be marked as incomplete" 
+                                    : (() => {
+                                        const taskContent = getArticleContent(task.id);
+                                        return taskContent.isQuiz
+                                          ? "Answer all quiz questions to complete this task"
+                                          : taskContent.isApplication
+                                            ? "Click the 'Access Kolay System' button to complete this task"
+                                            : taskContent.readingTime > 0
+                                              ? "Read the article to complete this task" 
+                                              : "Please complete this task";
+                                    })()
+                                  }
+                                </div>
+                              )}
+                            </button>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className={`text-sm font-medium ${task.completed ? 'text-gray-500 line-through' : task.id === 'task1' ? 'text-blue-700' : 'text-gray-900'}`}>
+                                  {task.title}
+                                </h4>
+                                
+                                {task.id === 'task1' && (
+                                  <span className="inline-flex items-center rounded-full bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-700 ring-1 ring-inset ring-cyan-600/20">
+                                    Start
+                                  </span>
+                                )}
+                                
+                                {/* When displaying content tags in the task list */}
+                                {module.id === 'module1' && (
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                                    task.id === 'task3' 
+                                      ? 'bg-purple-50 text-purple-700 ring-purple-600/20' 
+                                      : task.id === 'task1' 
+                                        ? 'bg-cyan-50 text-cyan-700 ring-cyan-600/20' 
+                                        : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                                  }`}>
+                                    {task.id === 'task3' ? 'Quiz' : task.id === 'task1' ? 'Application' : 'Content'}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <p className={`text-xs mt-1 ${
+                                task.completed 
+                                  ? 'text-gray-400' 
+                                  : task.id === 'task1' 
+                                    ? 'text-blue-600 font-medium' 
+                                    : 'text-gray-600'
+                              }`}>
+                                {task.description}
+                              </p>
+                              
+                              {/* Only show dialog option for Leave Fundamentals tasks */}
+                              {module.id === 'module1' && (
+                                <button 
+                                  onClick={() => openTaskDialog(task.id)}
+                                  className={`mt-2 text-xs flex items-center font-medium ${
+                                    activeTaskId === task.id 
+                                      ? 'text-indigo-600' 
+                                      : task.id === 'task1' && !task.completed
+                                        ? 'text-cyan-600 hover:text-cyan-700'
+                                        : 'text-indigo-500 hover:text-indigo-600'
+                                  }`}
+                                >
+                                  {task.id === 'task3' ? (
+                                    <>
+                                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                                      </svg>
+                                      {activeTaskId === task.id ? 'Quiz open' : 'Solve a Quiz'}
+                                    </>
+                                  ) : task.id === 'task1' ? (
+                                    <>
+                                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                      </svg>
+                                      {activeTaskId === task.id ? 'Application open' : 'Go to Kolay'}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                      </svg>
+                                      {activeTaskId === task.id ? 'Article open' : 'Read article'}
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
+      {/* Task Dialog Modal */}
+      {activeTask && article && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          {/* Background overlay */}
+          <div 
+            className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+            onClick={closeTaskDialog}
+          ></div>
+          
+          {/* Modal panel */}
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div 
+              className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="border-b border-gray-200 px-4 py-3 bg-gray-50 sm:px-6">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 mr-3">
+                      <span className="text-indigo-600 text-sm">
+                        {activeTask.id === 'task1' ? '🚀' : '📝'}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold leading-6 text-gray-900">{activeTask.title}</h3>
+                      <p className="mt-1 text-sm text-gray-600">{activeTask.description}</p>
+                    </div>
+                  </div>
+                  <button 
+                    className="text-gray-400 hover:text-gray-500"
+                    onClick={closeTaskDialog}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    activeTask.completed ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {activeTask.completed ? 'Completed' : 'In Progress'}
+                  </span>
+                  
+                  {/* Add reading time indicator */}
+                  {article.readingTime > 0 && !hasError && !article.isQuiz && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Reading time: {readingTimeRemaining > 0 ? `${readingTimeRemaining}s remaining` : 'Complete'}
+                    </span>
+                  )}
+
+                  {/* Add a quiz indicator */}
+                  {article.isQuiz && !hasError && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-purple-50 text-purple-700 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Quiz
+                    </span>
+                  )}
+                  
+                  {/* Add an application indicator */}
+                  {article.isApplication && !hasError && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Application
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Article Content or Error UI */}
+              <div className="px-6 py-5 sm:px-6 max-h-[60vh] overflow-y-auto">
+                {hasError ? (
+                  <div className="px-6 py-20 flex flex-col items-center justify-center">
+                    <div className="text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mb-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+                      <p className="text-gray-600 mb-6">We apologize for the inconvenience. Please try again or return to the home page.</p>
+                      <div className="flex justify-center space-x-4">
+                        <button 
+                          onClick={handleTryAgain}
+                          className="inline-flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+                        >
+                          Try again
+                        </button>
+                        <button 
+                          onClick={handleErrorReturn}
+                          className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                        >
+                          Return Home
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">{article.title}</h1>
+                    
+                    {/* Display quiz for Sick Leave Procedures */}
+                    {article.isQuiz ? (
+                      <div className="space-y-10">
+                        {article.questions.map((question, qIndex) => (
+                          <div key={qIndex} className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm transition-all hover:shadow-md">
+                            <h3 className="text-lg font-medium text-gray-900 mb-5 flex">
+                              <span className={`w-7 h-7 rounded-full flex items-center justify-center mr-3 flex-shrink-0 ${
+                                quizAnswers[qIndex] !== undefined 
+                                  ? (quizAnswers[qIndex] === question.correctAnswer 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800')
+                                  : 'bg-indigo-100 text-indigo-800'
+                              }`}>
+                                {qIndex + 1}
+                              </span>
+                              <span>{question.question}</span>
+                            </h3>
+                            
+                            <div className="space-y-3 ml-10">
+                              {question.options.map((option, oIndex) => {
+                                const isSelected = quizAnswers[qIndex] === oIndex;
+                                const isCorrect = oIndex === question.correctAnswer;
+                                const isWrongSelection = isSelected && !isCorrect;
+                                
+                                return (
+                                  <div key={oIndex} className="relative">
+                                    <input
+                                      id={`question-${qIndex}-option-${oIndex}`}
+                                      name={`question-${qIndex}`}
+                                      type="radio"
+                                      className="peer hidden"
+                                      checked={isSelected}
+                                      onChange={() => {
+                                        // Update selected answer
+                                        setQuizAnswers(prev => ({...prev, [qIndex]: oIndex}));
+                                        
+                                        // Show answer explanation if wrong
+                                        if (oIndex !== question.correctAnswer) {
+                                          setShowAnswers(prev => ({...prev, [qIndex]: true}));
+                                        }
+                                      }}
+                                    />
+                                    <label 
+                                      htmlFor={`question-${qIndex}-option-${oIndex}`} 
+                                      className={`block w-full p-3 border rounded-lg cursor-pointer transition-all peer-checked:border-2
+                                        ${isCorrect && (isSelected || showAnswers[qIndex]) 
+                                          ? 'bg-green-50 border-green-500 text-green-900' 
+                                          : isWrongSelection
+                                            ? 'bg-red-50 border-red-500 text-red-900'
+                                            : 'border-gray-200 hover:bg-gray-50 peer-checked:border-indigo-500 peer-checked:bg-indigo-50'}
+                                      `}
+                                    >
+                                      <div className="flex items-center">
+                                        <div className={`w-5 h-5 border rounded-full flex-shrink-0 mr-3 flex items-center justify-center
+                                          ${isCorrect && (isSelected || showAnswers[qIndex])
+                                            ? 'border-green-600 bg-green-600'
+                                            : isWrongSelection
+                                              ? 'border-red-600 bg-red-600'
+                                              : isSelected
+                                                ? 'border-indigo-600 bg-indigo-600'
+                                                : 'border-gray-300'}
+                                        `}>
+                                          {(isSelected || (isCorrect && showAnswers[qIndex])) && (
+                                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                                          )}
+                                        </div>
+                                        <span className={`
+                                          ${isCorrect && (isSelected || showAnswers[qIndex])
+                                            ? 'text-green-900 font-medium'
+                                            : isWrongSelection
+                                              ? 'text-red-900 font-medium'
+                                              : isSelected
+                                                ? 'text-indigo-900 font-medium'
+                                                : 'text-gray-700'}
+                                        `}>
+                                          {option}
+                                        </span>
+                                      </div>
+                                    </label>
+                                  </div>
+                                );
+                              })}
+                              
+                              {/* Show answer explanation when wrong answer is selected */}
+                              {showAnswers[qIndex] && (
+                                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                                  <div className="flex items-start">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    <div>
+                                      <p className="font-medium">Correct Answer: {question.options[question.correctAnswer]}</p>
+                                      <p className="text-sm mt-1">{question.explanation}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : article.isApplication ? (
+                      <div className="space-y-6">
+                        {article.sections.map((section, index) => (
+                          <div key={index} className="mb-6">
+                            {section.heading && (
+                              <h2 className="text-xl font-semibold text-gray-800 mb-2">{section.heading}</h2>
+                            )}
+                            <div 
+                              className="text-gray-700"
+                              dangerouslySetInnerHTML={{ __html: section.content }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      // Regular article content
+                      article.sections.map((section, index) => (
+                        <div key={index} className="mb-6">
+                          <h2 className="text-xl font-semibold text-gray-800 mb-2">{section.heading}</h2>
+                          <div className="text-gray-700 whitespace-pre-line">
+                            {section.content}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Footer with only completion button and close button */}
+              <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse border-t border-gray-200">
+                {!hasError && !activeTask.completed && (
+                  <button
+                    type="button"
+                    className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm sm:ml-3 sm:w-auto ${
+                      markCompleteDisabled || (activeTask.id === 'task1' && !kolayLinkClicked[activeTask.id])
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : article?.isQuiz && areAllQuestionsAnswered(article)
+                          ? 'bg-green-600 hover:bg-green-500 text-white'
+                          : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                    }`}
+                    onClick={() => handleToggleTask(activeTask.id, true, true)}
+                    disabled={markCompleteDisabled || (activeTask.id === 'task1' && !kolayLinkClicked[activeTask.id])}
+                  >
+                    {article?.isQuiz && areAllQuestionsAnswered(article) ? (
+                      <span className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Quiz Completed
+                      </span>
+                    ) : activeTask.id === 'task1' && !kolayLinkClicked[activeTask.id] ? (
+                      'Click "Access Kolay System" first'
+                    ) : (
+                      'Mark as Complete'
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                  onClick={closeTaskDialog}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+} 
