@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { modules, tasks as initialTasks, badges, currentUser } from '../../lib/mockData';
@@ -18,7 +18,8 @@ declare global {
   }
 }
 
-export default function TasksPage() {
+// Separate component that uses searchParams
+function TasksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const badgeId = searchParams.get('badgeId');
@@ -2183,5 +2184,13 @@ export default function TasksPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading tasks...</div>}>
+      <TasksContent />
+    </Suspense>
   );
 } 
