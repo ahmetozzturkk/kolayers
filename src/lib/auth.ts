@@ -18,7 +18,7 @@ interface JwtPayload {
 export async function verifyAuth(request: Request): Promise<string | null> {
   try {
     // Get token from cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
     
     // If no token, check Authorization header (for API calls)

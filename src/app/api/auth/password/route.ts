@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 export async function POST(request: Request) {
   try {
     // Get token from cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get('token');
 
     if (!token) {
