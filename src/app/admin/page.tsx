@@ -310,10 +310,10 @@ export default function AdminPage() {
         }
         break;
       case 'module':
-        const module = modules.find(m => m.id === id);
-        if (module) {
-          setSelectedModule(module);
-          setModuleForm({ ...module });
+        const moduleItem = modules.find(m => m.id === id);
+        if (moduleItem) {
+          setSelectedModule(moduleItem);
+          setModuleForm({ ...moduleItem });
           setShowModuleModal(true);
         }
         break;

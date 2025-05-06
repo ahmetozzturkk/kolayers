@@ -280,11 +280,11 @@ export default function TasksPage() {
     if (!task || !completed) return;
     
     // Find the module for this task
-    const module = modules.find(m => m.id === task.moduleId);
-    if (!module) return;
+    const moduleItem = modules.find(m => m.id === task.moduleId);
+    if (!moduleItem) return;
     
     // Find the badge for this module
-    const badge = badges.find(b => b.id === module.badgeId);
+    const badge = badges.find(b => b.id === moduleItem.badgeId);
     if (!badge) return;
     
     // Check if all tasks for modules in this badge are completed

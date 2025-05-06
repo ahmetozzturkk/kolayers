@@ -217,9 +217,9 @@ export default function BadgesPage() {
     // Get all tasks for all modules in this badge
     let allTasksCompleted = true;
     
-    for (const module of badge.modulesList) {
+    for (const moduleItem of badge.modulesList) {
       // Check if all tasks for this module are completed
-      const moduleTasks = module.tasks || [];
+      const moduleTasks = moduleItem.tasks || [];
       if (moduleTasks.some(task => !task.completed)) {
         allTasksCompleted = false;
         break;
@@ -471,13 +471,13 @@ export default function BadgesPage() {
                   } rounded-full`} 
                   style={{ 
                     width: `${badge.modulesList.length > 0 
-                      ? (badge.modulesList.reduce((count, module) => {
+                      ? (badge.modulesList.reduce((count, moduleItem) => {
                           // Count completed tasks in this module
-                          const completedTaskCount = module.tasks 
-                            ? module.tasks.filter(t => t.completed).length 
+                          const completedTaskCount = moduleItem.tasks 
+                            ? moduleItem.tasks.filter(t => t.completed).length 
                             : 0;
                           // Count total tasks in this module
-                          const totalTaskCount = module.tasks ? module.tasks.length : 0;
+                          const totalTaskCount = moduleItem.tasks ? moduleItem.tasks.length : 0;
                           
                           // Return the completion percentage for this module
                           return count + (totalTaskCount > 0 
@@ -565,30 +565,30 @@ export default function BadgesPage() {
               <div className="mb-6">
                 <h3 className="font-medium mb-3">Required Modules</h3>
                 <div className="space-y-3">
-                  {selectedBadge.modulesList.map(module => (
-                    <div key={module.id} className="border border-gray-200 rounded-lg p-4">
+                  {selectedBadge.modulesList.map(moduleItem => (
+                    <div key={moduleItem.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium">{module.title}</h4>
+                        <h4 className="font-medium">{moduleItem.title}</h4>
                         <span className={`text-xs px-2 py-1 rounded-full ${
-                          module.tasks && module.tasks.every(t => t.completed) 
+                          moduleItem.tasks && moduleItem.tasks.every(t => t.completed) 
                             ? 'bg-blue-100 text-blue-800' 
-                            : module.tasks && module.tasks.some(t => t.completed) 
+                            : moduleItem.tasks && moduleItem.tasks.some(t => t.completed) 
                               ? 'bg-amber-100 text-amber-800' 
                               : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {module.tasks && module.tasks.every(t => t.completed) 
+                          {moduleItem.tasks && moduleItem.tasks.every(t => t.completed) 
                             ? 'Completed' 
-                            : module.tasks && module.tasks.some(t => t.completed) 
+                            : moduleItem.tasks && moduleItem.tasks.some(t => t.completed) 
                               ? 'In Progress' 
                               : 'Not Started'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{module.description}</p>
+                      <p className="text-sm text-gray-600 mb-2">{moduleItem.description}</p>
                       
                       {/* Tasks */}
                       <div className="mt-3 space-y-2">
                         <h5 className="text-xs font-medium text-gray-700">Tasks:</h5>
-                        {module.tasks && module.tasks.map(task => (
+                        {moduleItem.tasks && moduleItem.tasks.map(task => (
                           <div key={task.id} className="flex items-center text-xs">
                             <div className={`w-4 h-4 rounded-full flex items-center justify-center mr-2 ${
                               task.completed ? 'bg-green-500 text-white' : 'bg-gray-200'
@@ -610,13 +610,13 @@ export default function BadgesPage() {
                       
                       <div className="mt-2">
                         <div className="text-xs text-gray-500 mb-1">
-                          {module.tasks ? module.tasks.filter(t => t.completed).length : 0} of {module.tasks ? module.tasks.length : 0} tasks completed
+                          {moduleItem.tasks ? moduleItem.tasks.filter(t => t.completed).length : 0} of {moduleItem.tasks ? moduleItem.tasks.length : 0} tasks completed
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 
                             className="bg-blue-500 h-2 rounded-full"
-                            style={{ width: `${module.tasks && module.tasks.length > 0 
-                              ? (module.tasks.filter(t => t.completed).length / module.tasks.length) * 100 
+                            style={{ width: `${moduleItem.tasks && moduleItem.tasks.length > 0 
+                              ? (moduleItem.tasks.filter(t => t.completed).length / moduleItem.tasks.length) * 100 
                               : 0}%` }}
                           ></div>
                         </div>
