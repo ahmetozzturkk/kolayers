@@ -55,17 +55,23 @@ export async function POST(request: Request) {
     // Create response with user data
     const response = NextResponse.json(userWithoutPassword);
     
+    // Get host from request for dynamic cookie domain
+    const host = request.headers.get('host') || '';
+    const domain = host.includes('localhost') ? undefined : 
+                  host.includes('.vercel.app') ? host : 
+                  host;
+
     // Set token cookie with proper settings for both development and production
     response.cookies.set({
       name: 'token',
       value: token,
       httpOnly: true,
       path: '/',
-      secure: true, // Always secure for Vercel
+      secure: !host.includes('localhost'),
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      // Use the actual domain, not .vercel.app
-      domain: process.env.NODE_ENV === 'production' ? 'kolayers.vercel.app' : undefined
+      // Dynamic domain based on request
+      domain: host.includes('localhost') ? undefined : undefined // Don't set domain to allow subdomains
     });
     
     return response;
