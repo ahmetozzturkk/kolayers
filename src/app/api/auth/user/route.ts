@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verify } from 'jsonwebtoken';
+import * as jose from 'jose';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
@@ -17,11 +17,10 @@ export async function GET() {
     }
 
     try {
-      // Verify token
-      const decoded = verify(
-        token,
-        process.env.NEXTAUTH_SECRET || 'fallback-secret'
-      ) as { id: string; email: string; name: string };
+      // Verify token using jose
+      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+      const { payload } = await jose.jwtVerify(token, secret);
+      const decoded = payload as { id: string; email: string; name: string };
 
       // Get user from database (excluding password)
       const user = await prisma.user.findUnique({
@@ -76,11 +75,10 @@ export async function PATCH(request: Request) {
     }
 
     try {
-      // Verify token
-      const decoded = verify(
-        token,
-        process.env.NEXTAUTH_SECRET || 'fallback-secret'
-      ) as { id: string; email: string; name: string };
+      // Verify token using jose
+      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+      const { payload } = await jose.jwtVerify(token, secret);
+      const decoded = payload as { id: string; email: string; name: string };
 
       // Get request body
       const body = await request.json();

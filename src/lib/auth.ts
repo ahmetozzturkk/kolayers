@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { verify } from 'jsonwebtoken';
+import * as jose from 'jose';
 
 // Define the shape of the JWT payload
 interface JwtPayload {
@@ -32,8 +32,9 @@ export async function verifyAuth(request: Request): Promise<string | null> {
       if (!headerToken) return null;
       
       try {
-        const decoded = verify(headerToken, process.env.NEXTAUTH_SECRET || 'fallback-secret') as JwtPayload;
-        return decoded.id;
+        const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+        const { payload } = await jose.jwtVerify<JwtPayload>(headerToken, secret);
+        return payload.id;
       } catch (error) {
         console.error('Invalid token in header:', error);
         return null;
@@ -42,8 +43,9 @@ export async function verifyAuth(request: Request): Promise<string | null> {
     
     // Verify the token from cookies
     try {
-      const decoded = verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as JwtPayload;
-      return decoded.id;
+      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+      const { payload } = await jose.jwtVerify<JwtPayload>(token, secret);
+      return payload.id;
     } catch (error) {
       console.error('Invalid token in cookie:', error);
       return null;
