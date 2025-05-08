@@ -61,10 +61,11 @@ export async function POST(request: Request) {
       value: token,
       httpOnly: true,
       path: '/',
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // Always secure for Vercel
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined
+      // Use the actual domain, not .vercel.app
+      domain: process.env.NODE_ENV === 'production' ? 'kolayers.vercel.app' : undefined
     });
     
     return response;

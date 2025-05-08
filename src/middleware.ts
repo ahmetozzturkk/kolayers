@@ -1,47 +1,55 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verify } from 'jsonwebtoken';
 
-// List of paths that don't require authentication
-const publicPaths = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register', '/api/auth/signup'];
+// Public paths that don't require authentication
+const publicPaths = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Allow public paths
+  
+  // Allow access to public paths
   if (publicPaths.includes(pathname)) {
     return NextResponse.next();
   }
-
-  // Allow API routes that don't require auth
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+  
+  // Allow access to static files and API routes that don't need auth
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/static') || 
+    pathname.includes('.') ||
+    (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/user'))
+  ) {
     return NextResponse.next();
   }
 
   // Check for token in cookies
   const token = request.cookies.get('token')?.value;
-
+  
   if (!token) {
-    // Redirect to login if no token is present
+    // No token found, redirect to login
     const url = new URL('/login', request.url);
     url.searchParams.set('from', pathname);
     return NextResponse.redirect(url);
   }
 
-  // For Edge Runtime, we'll just check if the token exists
-  // The actual verification will happen in the API routes
-  return NextResponse.next();
+  try {
+    // Verify the token
+    verify(token, process.env.NEXTAUTH_SECRET as string);
+    // Token is valid, allow access
+    return NextResponse.next();
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    // Token is invalid, redirect to login
+    const url = new URL('/login', request.url);
+    url.searchParams.set('from', pathname);
+    return NextResponse.redirect(url);
+  }
 }
 
-// Configure which routes to run middleware on
+// Apply middleware to all routes except public assets
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * 1. /api/auth/* (authentication endpoints)
-     * 2. /_next/* (Next.js internals)
-     * 3. /favicon.ico, /sitemap.xml (static files)
-     * 4. /public/* (public files)
-     */
-    '/((?!api/auth|_next|favicon.ico|sitemap.xml|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }; 
