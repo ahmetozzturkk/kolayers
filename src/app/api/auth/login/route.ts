@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { sign } from 'jsonwebtoken';
+import * as jose from 'jose';
 
 export async function POST(request: Request) {
   try {
@@ -38,16 +38,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create token
-    const token = sign(
-      { 
-        id: user.id,
-        email: user.email,
-        name: user.name 
-      },
-      process.env.NEXTAUTH_SECRET || 'fallback-secret',
-      { expiresIn: '7d' }
-    );
+    // Create payload
+    const payload = { 
+      id: user.id,
+      email: user.email,
+      name: user.name 
+    };
+    
+    // Create token using jose
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+    const token = await new jose.SignJWT(payload)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(secret);
 
     // Return user without password
     const { password: _, ...userWithoutPassword } = user;

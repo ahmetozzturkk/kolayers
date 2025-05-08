@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verify } from 'jsonwebtoken';
+import * as jose from 'jose';
 
 // Public paths that don't require authentication
 const publicPaths = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register'];
@@ -34,8 +34,10 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Verify the token
-    verify(token, process.env.NEXTAUTH_SECRET as string);
+    // Verify the token using jose instead of jsonwebtoken
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+    await jose.jwtVerify(token, secret);
+    
     // Token is valid, allow access
     return NextResponse.next();
   } catch (error) {
