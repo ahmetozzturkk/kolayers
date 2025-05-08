@@ -13,7 +13,7 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') || '/dashboard';
+  const from = searchParams.get('from') || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +38,7 @@ function LoginForm() {
         throw new Error(data.error || 'Invalid credentials');
       }
       
-      // Login successful, redirect to the original page or dashboard
+      // Redirect to the "from" path or home
       router.push(from);
     } catch (err) {
       console.error('Login error:', err);
