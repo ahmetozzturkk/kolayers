@@ -13,7 +13,6 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +37,10 @@ function LoginForm() {
         throw new Error(data.error || 'Invalid credentials');
       }
       
-      // Redirect to the "from" path or home
-      router.push(from);
+      // Get the 'from' param from the current URL at submit time
+      const params = new URLSearchParams(window.location.search);
+      const fromParam = params.get('from');
+      router.push(fromParam && fromParam.startsWith('/') ? fromParam : '/');
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Invalid credentials. Please try again.');
