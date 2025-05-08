@@ -13,6 +13,8 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const searchParams = useSearchParams();
+  // Extract the 'from' parameter immediately from the searchParams hook
+  const fromPath = searchParams.get('from') || '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +39,18 @@ function LoginForm() {
         throw new Error(data.error || 'Invalid credentials');
       }
       
-      // Get the 'from' param from the current URL at submit time
-      const params = new URLSearchParams(window.location.search);
-      const fromParam = params.get('from');
-      router.push(fromParam && fromParam.startsWith('/') ? fromParam : '/');
+      console.log('Login successful, redirecting to:', fromPath);
+      
+      // Force redirect to the dashboard if fromPath doesn't start with /
+      const redirectPath = fromPath && fromPath.startsWith('/') ? fromPath : '/dashboard';
+      
+      // Use a direct window.location for more reliable navigation after auth
+      window.location.href = redirectPath;
+      
+      // As a fallback (if the above doesn't trigger fast enough)
+      setTimeout(() => {
+        router.push(redirectPath);
+      }, 100);
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Invalid credentials. Please try again.');
