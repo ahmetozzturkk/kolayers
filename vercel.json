@@ -4,5 +4,9 @@
       "src": "package.json",
       "use": "@vercel/next"
     }
-  ]
+  ],
+  "env": {
+    "NEXTAUTH_URL": "https://kolayers.vercel.app",
+    "NEXTAUTH_SECRET": "fsdokqdqdqd139d9139"
+  }
 } 

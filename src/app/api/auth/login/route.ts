@@ -55,14 +55,16 @@ export async function POST(request: Request) {
     // Create response with user data
     const response = NextResponse.json(userWithoutPassword);
     
-    // Set token cookie
+    // Set token cookie with proper settings for both development and production
     response.cookies.set({
       name: 'token',
       value: token,
       httpOnly: true,
       path: '/',
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined
     });
     
     return response;
