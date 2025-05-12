@@ -66,6 +66,8 @@ export interface Badge {
   earned: boolean;
   points: number; // Points awarded for earning this badge
   requiredToComplete: string[]; // Module IDs required to complete
+  backgroundColor?: string; // Background color for the badge
+  icon?: string; // Emoji icon for the badge
 }
 
 export interface Certificate {

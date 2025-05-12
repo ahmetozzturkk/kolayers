@@ -92,6 +92,36 @@ function TasksContent() {
           initialTasks.length = 0;
           initialTasks.push(...parsedCustomTasks);
           setTasksState(parsedCustomTasks);
+          
+          // IMPORTANT: Initialize task content in sessionStorage for all tasks
+          // This ensures that task types are properly recognized
+          parsedCustomTasks.forEach(task => {
+            if (task.content) {
+              try {
+                // Make sure the content has the right structure for the task type
+                const enhancedContent = {
+                  ...task.content,
+                  title: task.title,
+                  taskType: task.taskType || task.content.taskType || 'regular',
+                  isQuiz: task.taskType === 'quiz' || task.content.isQuiz,
+                  isReading: task.taskType === 'reading' || task.content.isReading,
+                  isApplication: task.taskType === 'application' || task.content.isApplication,
+                  isVideo: task.taskType === 'video' || task.content.isVideo,
+                  isReferral: task.taskType === 'referral' || task.content.isReferral,
+                };
+                
+                // Set appropriate reading time for reading tasks
+                if (enhancedContent.isReading && !enhancedContent.readingTime) {
+                  enhancedContent.readingTime = 30; // Default reading time
+                }
+                
+                sessionStorage.setItem(`task_content_${task.id}`, JSON.stringify(enhancedContent));
+                console.log(`Initialized content for task ${task.id} in sessionStorage:`, enhancedContent);
+              } catch (e) {
+                console.error(`Error initializing content for task ${task.id}:`, e);
+              }
+            }
+          });
         }
         
         // Load completed tasks
@@ -464,13 +494,49 @@ function TasksContent() {
     });
   }, [tasksState, quizAnswers, referralFormSubmitted, checkBadgeCompletion]);
   
+  // Near the top of the file with other state declarations
+  // Add state to track if the active task is a reading task
+  const [isReadingTask, setIsReadingTask] = useState(false);
+  
   const openTaskDialog = (taskId: string) => {
+    // Get the task object
+    const task = tasksState.find(t => t.id === taskId);
+    console.log(`Opening task dialog for task ${taskId}:`, task);
+    
+    if (!task) {
+      console.error(`Task with ID ${taskId} not found in tasksState:`, tasksState);
+      return;
+    }
+    
+    // Get task type
+    const taskType = getTaskType(task);
+    console.log(`Task ${taskId} has type: ${taskType}`);
+    
+    // Set reading task state based on type
+    setIsReadingTask(taskType === 'reading');
+    
+    // For all task types, navigate to the task dialog
+    console.log(`Routing to task dialog for ${taskType} task ${taskId}`);
     router.push(`/tasks?taskId=${taskId}`);
   };
   
-  // Keep this function for other article tasks, but we won't use it for "Start Leave Management"
   const openArticlePage = (taskId: string) => {
-    router.push(`/tasks/article?taskId=${taskId}`);
+    // Instead of navigating to a non-existent page, open the article in the current page
+    console.log(`Opening article page for task ${taskId} in the current page`);
+    
+    // Use state to show the article
+    const task = tasksState.find(t => t.id === taskId);
+    if (task) {
+      console.log(`Found task ${taskId} for article view`);
+    } else {
+      console.error(`Task ${taskId} not found for article view`);
+    }
+    
+    // Set reading task state to true
+    setIsReadingTask(true);
+    
+    // Show the task dialog instead of navigating to a separate page
+    router.push(`/tasks?taskId=${taskId}`);
   };
   
   const closeTaskDialog = () => {
@@ -1221,6 +1287,15 @@ function TasksContent() {
       return task.content.taskType;
     }
     
+    // Check content flags
+    if (task.content) {
+      if (task.content.isQuiz) return 'quiz';
+      if (task.content.isApplication) return 'application';
+      if (task.content.isVideo) return 'video';
+      if (task.content.isReferral) return 'referral';
+      if (task.content.isReading || task.content.readingTime > 0) return 'reading';
+    }
+    
     // Fall back to checking specific task IDs for backward compatibility
     if (task.id === 'task3') return 'quiz';
     if (task.id === 'task1') return 'application';
@@ -1733,8 +1808,7 @@ function TasksContent() {
                                 {task.description}
                               </p>
                               
-                              {/* Show dialog option for both Leave Fundamentals and Advanced Leave Management tasks */}
-                              {(module.id === 'module1' || module.id === 'module2') && (
+                              {/* Show dialog option for ALL modules, not just specific ones */}
                                 <button 
                                   onClick={() => openTaskDialog(task.id)}
                                   className={`mt-2 text-xs flex items-center font-medium ${
@@ -1789,7 +1863,6 @@ function TasksContent() {
                                     </>
                                   )}
                                 </button>
-                              )}
                             </div>
                           </div>
                         </div>

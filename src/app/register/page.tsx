@@ -62,6 +62,33 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed');
       }
       
+      // Initialize localStorage for new user with empty data
+      if (typeof window !== 'undefined') {
+        // Initialize empty earned badges, completed tasks, etc.
+        localStorage.setItem('earnedBadges', JSON.stringify([]));
+        localStorage.setItem('completedTasks', JSON.stringify([]));
+        localStorage.setItem('claimedRewards', JSON.stringify([]));
+        localStorage.setItem('earnedCertificates', JSON.stringify([]));
+        localStorage.setItem('spentPoints', '0');
+        localStorage.setItem('startedBadges', JSON.stringify({}));
+        
+        // Make sure all badges are marked as not earned for the new user
+        const existingBadges = localStorage.getItem('customBadges');
+        if (existingBadges) {
+          try {
+            const parsedBadges = JSON.parse(existingBadges);
+            parsedBadges.forEach(badge => {
+              badge.earned = false;
+            });
+            localStorage.setItem('customBadges', JSON.stringify(parsedBadges));
+          } catch (e) {
+            console.error('Error updating badges in localStorage:', e);
+          }
+        }
+        
+        console.log('Initialized localStorage for new user');
+      }
+      
       // Registration successful, redirect to dashboard or login
       router.push('/dashboard');
     } catch (err) {

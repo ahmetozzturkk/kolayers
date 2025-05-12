@@ -98,8 +98,33 @@ export default function DashboardPage() {
     // Set up an interval to refresh user data periodically
     const refreshInterval = setInterval(loadUser, 30000); // Refresh every 30 seconds
     
+    // Function to refresh task data
+    const refreshTaskData = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          // Get latest completed tasks
+          const savedCompletedTasks = localStorage.getItem('completedTasks');
+          if (savedCompletedTasks) {
+            const parsedCompletedTasks = JSON.parse(savedCompletedTasks);
+            setCompletedTaskIds(parsedCompletedTasks);
+            
+            // Update tasks' completed status
+            tasks.forEach(task => {
+              task.completed = parsedCompletedTasks.includes(task.id);
+            });
+          }
+        } catch (e) {
+          console.error('Error refreshing task data:', e);
+        }
+      }
+    };
+    
+    // Set up interval to refresh task data
+    const taskRefreshInterval = setInterval(refreshTaskData, 5000); // Refresh every 5 seconds
+    
     return () => {
       clearInterval(refreshInterval); // Clean up interval on component unmount
+      clearInterval(taskRefreshInterval); // Clean up task refresh interval
     };
   }, []);
 
@@ -109,6 +134,23 @@ export default function DashboardPage() {
       // Reload data when the window regains focus
       if (typeof window !== 'undefined') {
         try {
+          // Load custom tasks first to ensure we have the latest tasks
+          const customTasks = localStorage.getItem('customTasks');
+          if (customTasks) {
+            const parsedCustomTasks = JSON.parse(customTasks);
+            
+            // Update the tasks array with custom tasks
+            if (Array.isArray(parsedCustomTasks)) {
+              // Clone to avoid mutation issues
+              const updatedTasks = [...parsedCustomTasks];
+              
+              // Update global tasks reference (this will trigger re-renders)
+              tasks.length = 0;
+              tasks.push(...updatedTasks);
+              console.log('Updated tasks from localStorage on focus:', updatedTasks.length);
+            }
+          }
+          
           // Load earned badges
           const savedEarnedBadges = localStorage.getItem('earnedBadges');
           if (savedEarnedBadges) {
@@ -179,39 +221,69 @@ export default function DashboardPage() {
 
   // Calculate total active tasks
   const activeTasks = useMemo(() => {
-    if (completedTaskIds.length > 0) {
-      // Calculate active tasks based on completedTaskIds
-      return tasks.filter(task => !completedTaskIds.includes(task.id)).length;
+    // Load tasks including custom ones if they exist
+    let allTasks = [...tasks]; // Start with default tasks
+    
+    if (typeof window !== 'undefined') {
+      try {
+        // Check for custom tasks
+        const customTasks = localStorage.getItem('customTasks');
+        if (customTasks) {
+          const parsedCustomTasks = JSON.parse(customTasks);
+          if (Array.isArray(parsedCustomTasks) && parsedCustomTasks.length > 0) {
+            // Replace with custom tasks if they exist
+            allTasks = parsedCustomTasks;
+          }
+        }
+      } catch (e) {
+        console.error('Error loading custom tasks for activity count:', e);
+      }
     }
+    
+    // Ensure we're always using the most up-to-date completion status
+    if (completedTaskIds.length > 0) {
+      // Calculate active tasks based on completedTaskIds from localStorage
+      return allTasks.filter(task => !completedTaskIds.includes(task.id)).length;
+    }
+    
     // Fallback to task.completed property
-    return tasks.filter(task => !task.completed).length;
-  }, [completedTaskIds]);
+    return allTasks.filter(task => !task.completed).length;
+  }, [completedTaskIds, tasks]);
 
-  // Get earned badges count
+  // Get earned badges count - with default 0 for new users
   const earnedBadgesCount = useMemo(() => {
     if (earnedBadgeIds.length > 0) {
       return earnedBadgeIds.length;
     }
-    return badges.filter(badge => badge.earned).length;
+    // Check badges with earned property
+    const earnedBadgesCount = badges.filter(badge => badge.earned).length;
+    // Return 0 for new users if nothing is found
+    return earnedBadgesCount;
   }, [earnedBadgeIds]);
 
-  // Get claimed certificates count
+  // Get claimed certificates count - with default 0 for new users
   const claimedCertificatesCount = useMemo(() => {
     if (earnedCertificateIds.length > 0) {
       return earnedCertificateIds.length;
     }
-    return certificates.filter(certificate => certificate.earned).length;
+    // Check certificates with earned property
+    const claimedCertificatesCount = certificates.filter(certificate => certificate.earned).length;
+    // Return 0 for new users if nothing is found
+    return claimedCertificatesCount;
   }, [earnedCertificateIds]);
 
-  // Get claimed rewards count
+  // Get claimed rewards count - with default 0 for new users
   const claimedRewardsCount = useMemo(() => {
     if (claimedRewardIds.length > 0) {
       return claimedRewardIds.length;
     }
-    return rewards.filter(reward => reward.claimed).length;
+    // Check rewards with claimed property
+    const claimedRewardsCount = rewards.filter(reward => reward.claimed).length;
+    // Return 0 for new users if nothing is found
+    return claimedRewardsCount;
   }, [claimedRewardIds]);
 
-  // Calculate total earned points
+  // Calculate total earned points - with default 0 for new users
   const totalPoints = useMemo(() => {
     // Calculate points from earned badges
     const badgePoints = badges

@@ -119,7 +119,9 @@ export default function AdminPage() {
     imageUrl: '',
     earned: false,
     points: 0,
-    requiredToComplete: []
+    requiredToComplete: [],
+    backgroundColor: '#7c3aed', // Default color (indigo/lavender)
+    icon: '📅' // Default icon
   });
 
   const [moduleForm, setModuleForm] = useState<Partial<Module>>({
@@ -237,7 +239,9 @@ export default function AdminPage() {
           imageUrl: '',
           earned: false,
           points: 0,
-          requiredToComplete: []
+          requiredToComplete: [],
+          backgroundColor: '#7c3aed', // Default color (indigo/lavender)
+          icon: '📅' // Default icon
         });
         setShowBadgeModal(true);
         break;
@@ -756,104 +760,18 @@ export default function AdminPage() {
       console.log('Saving task with content:', taskContent);
       console.log('Full task data:', taskToSave);
       
-      // Store task content in sessionStorage for persistence
-      if (typeof window !== 'undefined') {
-        try {
-          const taskId = selectedTask?.id || `task${tasks.length + 1}`; // Generate temporary ID for new tasks
-          
-          // Make sure the task content properly reflects the task type
-          const contentWithType = {
-            ...taskContent,
-            taskType: taskForm.taskType, // Ensure taskType is set explicitly
-            isQuiz: taskForm.taskType === 'quiz',
-            isApplication: taskForm.taskType === 'application',
-            isVideo: taskForm.taskType === 'video',
-            isReferral: taskForm.taskType === 'referral',
-            isReading: taskForm.taskType === 'reading',
-            readingTime: taskForm.taskType === 'reading' ? (taskForm.readingTime || 30) : 0
-          };
-          
-          // Add a special check for referral tasks
-          if (taskForm.taskType === 'referral') {
-            console.log('Setting up referral task content with specific properties');
-            contentWithType.isReferral = true;
-            contentWithType.taskType = 'referral';
-            
-            // Make sure it has proper sections if not already defined
-            if (!contentWithType.sections || contentWithType.sections.length === 0) {
-              contentWithType.sections = [{
-                heading: "Recommend Team Members",
-                content: `
-                  <p class="mb-4">Share this training resource with your colleagues to help improve the team's overall HR management skills.</p>
-                  <p class="mb-4">Complete the form below to send an invitation to your team members. This will help build a stronger, more knowledgeable team.</p>
-                `
-              }];
-            }
-          }
-          
-          // For reading tasks, ensure sections are properly formatted
-          if (taskForm.taskType === 'reading' && taskForm.sections && taskForm.sections.length > 0) {
-            console.log('Saving reading task with sections:', taskForm.sections);
-            // Make sure sections are retained in the content
-            contentWithType.sections = taskForm.sections.map(section => ({
-              heading: section.heading || '',
-              content: section.content || ''
-            }));
-          }
-          
-          sessionStorage.setItem(`task_content_${taskId}`, JSON.stringify(contentWithType));
-          console.log(`Saved task content to sessionStorage for task ${taskId} with type ${taskForm.taskType}`, contentWithType);
-        } catch (e) {
-          console.error('Error saving task content to sessionStorage:', e);
-        }
-      }
-      
       // Use the mockDataHelpers to save the task
       const isNew = !selectedTask;
       const savedTask = mockDataHelpers.saveTask(taskToSave, isNew);
       
-      // Double-check that the task type was preserved
-      console.log(`Saved task with type: ${savedTask.taskType}, content.taskType: ${savedTask.content?.taskType}`);
-      
-      // Ensure the task in the tasks array has the content property
-      const taskIndex = tasks.findIndex(t => t.id === savedTask.id);
-      if (taskIndex !== -1) {
-        console.log(`Updating task at index ${taskIndex} with type ${taskForm.taskType}`);
-        tasks[taskIndex].content = taskContent;
-        tasks[taskIndex].taskType = taskForm.taskType;
-        
-        // Double-check that the taskType is set on both the task and its content
-        if (!tasks[taskIndex].taskType) {
-          console.warn(`Task ${savedTask.id} has no taskType, explicitly setting it to ${taskForm.taskType}`);
-          tasks[taskIndex].taskType = taskForm.taskType;
-        }
-        
-        if (tasks[taskIndex].content && !tasks[taskIndex].content.taskType) {
-          console.warn(`Task ${savedTask.id} content has no taskType, explicitly setting it to ${taskForm.taskType}`);
-          tasks[taskIndex].content.taskType = taskForm.taskType;
-        }
-      }
-      
-      // Also update the task in the module's tasks array
-      const moduleIndex = modules.findIndex(m => m.id === savedTask.moduleId);
-      if (moduleIndex !== -1 && modules[moduleIndex].tasks) {
-        const moduleTaskIndex = modules[moduleIndex].tasks.findIndex(t => t.id === savedTask.id);
-        if (moduleTaskIndex !== -1) {
-          console.log(`Updating module task at index ${moduleTaskIndex} with type ${taskForm.taskType}`);
-          modules[moduleIndex].tasks[moduleTaskIndex].content = taskContent;
-          modules[moduleIndex].tasks[moduleTaskIndex].taskType = taskForm.taskType;
-          
-          // Double-check module task taskType
-          if (!modules[moduleIndex].tasks[moduleTaskIndex].taskType) {
-            console.warn(`Module task ${savedTask.id} has no taskType, explicitly setting it to ${taskForm.taskType}`);
-            modules[moduleIndex].tasks[moduleTaskIndex].taskType = taskForm.taskType;
-          }
-          
-          if (modules[moduleIndex].tasks[moduleTaskIndex].content && 
-              !modules[moduleIndex].tasks[moduleTaskIndex].content.taskType) {
-            console.warn(`Module task ${savedTask.id} content has no taskType, explicitly setting it to ${taskForm.taskType}`);
-            modules[moduleIndex].tasks[moduleTaskIndex].content.taskType = taskForm.taskType;
-          }
+      // IMPORTANT: Also store task content in sessionStorage
+      // This ensures that task types are properly recognized throughout the app
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem(`task_content_${savedTask.id}`, JSON.stringify(taskContent));
+          console.log(`Explicitly saved task content to sessionStorage for task ${savedTask.id}:`, taskContent);
+        } catch (e) {
+          console.error('Error saving task content to sessionStorage:', e);
         }
       }
       
@@ -1816,17 +1734,102 @@ export default function AdminPage() {
                 ></textarea>
               </div>
               
-              {/* Image URL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={badgeForm.imageUrl}
-                  onChange={(e) => setBadgeForm({...badgeForm, imageUrl: e.target.value})}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                />
+              {/* Badge Appearance - Color and Icon */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Background Color */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Background Color</label>
+                  <div className="flex items-center">
+                    <input
+                      type="color"
+                      value={badgeForm.backgroundColor || '#7c3aed'}
+                      onChange={(e) => setBadgeForm({...badgeForm, backgroundColor: e.target.value})}
+                      className="w-8 h-8 rounded border border-gray-300 mr-2 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={badgeForm.backgroundColor || '#7c3aed'}
+                      onChange={(e) => setBadgeForm({...badgeForm, backgroundColor: e.target.value})}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                      placeholder="#7c3aed"
+                    />
+                  </div>
+                </div>
+                
+                {/* Icon Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon (Emoji)</label>
+                  <div className="flex items-center">
+                    <div 
+                      className="w-8 h-8 rounded flex items-center justify-center mr-2 border border-gray-300"
+                      style={{ backgroundColor: badgeForm.backgroundColor || '#7c3aed' }}
+                    >
+                      <span className="text-white text-lg">{badgeForm.icon || '📅'}</span>
+                    </div>
+                    <select
+                      value={badgeForm.icon || '📅'}
+                      onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="📅">📅 Calendar</option>
+                      <option value="🚀">🚀 Rocket</option>
+                      <option value="🏆">🏆 Trophy</option>
+                      <option value="📊">📊 Chart</option>
+                      <option value="👥">👥 Team</option>
+                      <option value="🔰">🔰 Beginner</option>
+                      <option value="🎯">🎯 Target</option>
+                      <option value="💼">💼 Briefcase</option>
+                      <option value="⭐">⭐ Star</option>
+                      <option value="🌟">🌟 Sparkle</option>
+                      <option value="📚">📚 Books</option>
+                      <option value="💻">💻 Computer</option>
+                      <option value="🔍">🔍 Search</option>
+                      <option value="📝">📝 Note</option>
+                      <option value="✨">✨ Sparkles</option>
+                      <option value="🎓">🎓 Graduation</option>
+                      <option value="🧠">🧠 Knowledge</option>
+                      <option value="💡">💡 Idea</option>
+                      <option value="🛠️">🛠️ Tools</option>
+                      <option value="🔑">🔑 Key</option>
+                      <option value="🌱">🌱 Growth</option>
+                      <option value="🎨">🎨 Creative</option>
+                      <option value="👩‍💻">👩‍💻 Developer</option>
+                      <option value="👨‍💼">👨‍💼 Manager</option>
+                      <option value="📱">📱 Mobile</option>
+                      <option value="⚙️">⚙️ Settings</option>
+                      <option value="📣">📣 Announcement</option>
+                      <option value="🔒">🔒 Security</option>
+                      <option value="🌐">🌐 Global</option>
+                      <option value="📞">📞 Support</option>
+                      <option value="👨‍🏫">👨‍🏫 Teacher</option>
+                      <option value="🏅">🏅 Medal</option>
+                      <option value="👑">👑 Crown</option>
+                      <option value="🧩">🧩 Puzzle</option>
+                      <option value="🔔">🔔 Notification</option>
+                      <option value="⏱️">⏱️ Time</option>
+                      <option value="🏋️">🏋️ Training</option>
+                      <option value="📋">📋 Clipboard</option>
+                      <option value="🌿">🌿 Wellness</option>
+                      <option value="🗂️">🗂️ Organization</option>
+                      <option value="💭">💭 Thinking</option>
+                    </select>
+                  </div>
+                </div>
               </div>
               
+              {/* Preview */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Badge Preview</label>
+                <div className="flex items-center justify-center py-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div 
+                    className="w-16 h-16 rounded-full flex items-center justify-center" 
+                    style={{ backgroundColor: badgeForm.backgroundColor || '#7c3aed' }}
+                  >
+                    <span className="text-white text-3xl">{badgeForm.icon || '📅'}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Required Modules */}
               <div>
                 <div className="flex justify-between items-center mb-1">

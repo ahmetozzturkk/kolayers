@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300">
+  <!-- Card background with soft shadow -->
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+    <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.2"/>
+  </filter>
+  
+  <!-- Background Rectangle -->
+  <rect width="800" height="300" rx="12" fill="white" filter="url(#shadow)"/>
+  
+  <!-- Left Side: Badge Section -->
+  <g transform="translate(30, 30)">
+    <!-- Company Logo -->
+    <g transform="translate(0, 10)">
+      <rect width="40" height="30" fill="white"/>
+      <text x="0" y="15" font-family="Arial, sans-serif" font-size="16" font-weight="bold">
+        <tspan fill="#4A55A2">K</tspan><tspan fill="#333333">olayers</tspan>
+      </text>
+    </g>
+    
+    <!-- Badge Title -->
+    <text x="0" y="70" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#312E81">Senior Onboarding Expert</text>
+    
+    <!-- Badge Icon Circle -->
+    <circle cx="60" cy="160" r="60" fill="#C7B9FF"/>
+    
+    <!-- Rocket Icon -->
+    <g transform="translate(40, 140) scale(0.4)">
+      <path d="M75,36.3c0-19.7-16-35.7-35.7-35.7S3.6,16.6,3.6,36.3c0,5.8,1.4,11.3,3.9,16.1c0.7,1.4,1.6,2.7,2.5,4l29.3,41.5l29.4-41.6  c0.9-1.3,1.7-2.6,2.5-4C73.6,47.6,75,42.1,75,36.3z" fill="#FFF"/>
+      <path d="M39.7,11.4c-13.7,0-24.8,11.1-24.8,24.8c0,13.7,11.1,24.8,24.8,24.8c13.7,0,24.8-11.1,24.8-24.8  C64.5,22.5,53.4,11.4,39.7,11.4z" fill="#FF4757"/>
+      <path d="M45.5,12.8L8,98.1c-0.4,1.8,1.4,3.4,3.1,2.4l92.8-52.9c1.4-0.8,1.4-2.8,0-3.6L58.6,16.4C54.3,13.7,49.8,12.2,45.5,12.8z" fill="#FF4757"/>
+      <path d="M46.6,9.6c0,3.8-3.2,6.8-7.1,6.8s-7.1-3-7.1-6.8s3.2-6.8,7.1-6.8S46.6,5.8,46.6,9.6z" fill="#ECF0F1"/>
+      <path d="M57.2,27.4c0,2.2-1.8,4-4,4c-2.2,0-4-1.8-4-4c0-2.2,1.8-4,4-4C55.4,23.4,57.2,25.2,57.2,27.4z" fill="#F3D55B"/>
+      <path d="M30.1,19.7c0,2.2-1.8,4-4,4c-2.2,0-4-1.8-4-4c0-2.2,1.8-4,4-4C28.3,15.7,30.1,17.5,30.1,19.7z" fill="#F3D55B"/>
+      <path d="M47.9,47.8c0,2.2-1.8,4-4,4c-2.2,0-4-1.8-4-4c0-2.2,1.8-4,4-4C46.1,43.8,47.9,45.6,47.9,47.8z" fill="#F3D55B"/>
+    </g>
+    
+    <!-- People Icons -->
+    <g transform="translate(30, 230)">
+      <circle cx="12" cy="12" r="12" fill="#6366F1"/>
+      <circle cx="36" cy="12" r="12" fill="#EC4899"/>
+      <circle cx="60" cy="12" r="12" fill="#F59E0B"/>
+      <circle cx="84" cy="12" r="12" fill="#10B981"/>
+      <circle cx="108" cy="12" r="12" fill="#333333"/>
+      <text x="108" y="17" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="white">+</text>
+    </g>
+    
+    <!-- Join Button -->
+    <rect x="30" y="260" width="120" height="30" rx="15" fill="#4338CA"/>
+    <text x="90" y="280" font-family="Arial, sans-serif" font-size="14" font-weight="600" text-anchor="middle" fill="white">SHARE BADGE</text>
+    
+    <!-- Points -->
+    <g transform="translate(160, 260)">
+      <text x="0" y="20" font-family="Arial, sans-serif" font-size="14" fill="#666666">150 POINTS</text>
+    </g>
+  </g>
+  
+  <!-- Divider Line -->
+  <line x1="280" y1="30" x2="280" y2="270" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Right Side: Message Section -->
+  <g transform="translate(320, 50)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#111827">Onboarding Expert at Kolayers</text>
+    
+    <text x="0" y="50" font-family="Arial, sans-serif" font-size="16" line-height="1.6" fill="#4B5563">
+      <tspan x="0" dy="0">Congratulations on earning the Onboarding Expert badge!</tspan>
+      <tspan x="0" dy="30">You've demonstrated proficiency in employee onboarding</tspan>
+      <tspan x="0" dy="30">procedures and best practices, setting up new team</tspan>
+      <tspan x="0" dy="30">members for success from day one.</tspan>
+    </text>
+    
+    <!-- Curved Shape Decoration -->
+    <path d="M400,180 Q440,160 450,200 T500,180" fill="none" stroke="#C7B9FF" stroke-width="3"/>
+    <path d="M380,160 Q420,180 430,140 T480,160" fill="none" stroke="#C7B9FF" stroke-width="3"/>
+  </g>
+</svg>

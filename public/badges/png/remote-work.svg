@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300">
+  <!-- Card background with soft shadow -->
+  <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+    <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.2"/>
+  </filter>
+  
+  <!-- Background Rectangle -->
+  <rect width="800" height="300" rx="12" fill="white" filter="url(#shadow)"/>
+  
+  <!-- Left Side: Badge Section -->
+  <g transform="translate(30, 30)">
+    <!-- Company Logo -->
+    <g transform="translate(0, 10)">
+      <rect width="40" height="30" fill="white"/>
+      <text x="0" y="15" font-family="Arial, sans-serif" font-size="16" font-weight="bold">
+        <tspan fill="#4A55A2">K</tspan><tspan fill="#333333">olayers</tspan>
+      </text>
+    </g>
+    
+    <!-- Badge Title -->
+    <text x="0" y="70" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#5B21B6">Remote Work Manager</text>
+    
+    <!-- Badge Icon Circle -->
+    <circle cx="60" cy="160" r="60" fill="#E9D5FF"/>
+    
+    <!-- Laptop Icon -->
+    <g transform="translate(30, 130) scale(0.1)">
+      <path d="M614,514h-82.4c-3.2,0-5.6-2.4-5.6-5.6V120.4c0-3.2,2.4-5.6,5.6-5.6H614c3.2,0,5.6,2.4,5.6,5.6v388 C619.6,511.6,617.2,514,614,514z" fill="#8B5CF6" stroke="#8B5CF6" stroke-width="10"/>
+      <path d="M614,514H82c-3.2,0-5.6-2.4-5.6-5.6v-87.6c0-3.2,2.4-5.6,5.6-5.6h532c3.2,0,5.6,2.4,5.6,5.6v87.6 C619.6,511.6,617.2,514,614,514z" fill="#8B5CF6" stroke="#8B5CF6" stroke-width="10"/>
+      <path d="M531.6,514h-368c-3.2,0-5.6-2.4-5.6-5.6V120.4c0-3.2,2.4-5.6,5.6-5.6h368c3.2,0,5.6,2.4,5.6,5.6v388 C537.2,511.6,534.8,514,531.6,514z" fill="#FFFFFF" stroke="#8B5CF6" stroke-width="10"/>
+      <circle cx="348" cy="475.2" r="12.4" fill="#E9D5FF"/>
+      <rect x="196" y="146" width="304" height="292" rx="4" fill="#F5F3FF"/>
+      <rect x="216" y="166" width="264" height="20" rx="2" fill="#8B5CF6"/>
+      <rect x="216" y="196" width="264" height="20" rx="2" fill="#8B5CF6" fill-opacity="0.6"/>
+      <rect x="216" y="226" width="264" height="20" rx="2" fill="#8B5CF6" fill-opacity="0.6"/>
+      <rect x="216" y="256" width="164" height="20" rx="2" fill="#8B5CF6" fill-opacity="0.6"/>
+    </g>
+    
+    <!-- People Icons -->
+    <g transform="translate(30, 230)">
+      <circle cx="12" cy="12" r="12" fill="#6366F1"/>
+      <circle cx="36" cy="12" r="12" fill="#EC4899"/>
+      <circle cx="60" cy="12" r="12" fill="#F59E0B"/>
+      <circle cx="84" cy="12" r="12" fill="#10B981"/>
+      <circle cx="108" cy="12" r="12" fill="#333333"/>
+      <text x="108" y="17" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="white">+</text>
+    </g>
+    
+    <!-- Join Button -->
+    <rect x="30" y="260" width="120" height="30" rx="15" fill="#8B5CF6"/>
+    <text x="90" y="280" font-family="Arial, sans-serif" font-size="14" font-weight="600" text-anchor="middle" fill="white">SHARE BADGE</text>
+    
+    <!-- Points -->
+    <g transform="translate(160, 260)">
+      <text x="0" y="20" font-family="Arial, sans-serif" font-size="14" fill="#666666">200 POINTS</text>
+    </g>
+  </g>
+  
+  <!-- Divider Line -->
+  <line x1="280" y1="30" x2="280" y2="270" stroke="#E5E7EB" stroke-width="1"/>
+  
+  <!-- Right Side: Message Section -->
+  <g transform="translate(320, 50)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#111827">Remote Work Manager at Kolayers</text>
+    
+    <text x="0" y="50" font-family="Arial, sans-serif" font-size="16" line-height="1.6" fill="#4B5563">
+      <tspan x="0" dy="0">Congratulations on earning the Remote Work Manager badge!</tspan>
+      <tspan x="0" dy="30">You've mastered the essential skills for leading distributed teams,</tspan>
+      <tspan x="0" dy="30">establishing effective remote communication channels, and</tspan>
+      <tspan x="0" dy="30">ensuring productivity in virtual work environments.</tspan>
+    </text>
+    
+    <!-- Curved Shape Decoration -->
+    <path d="M400,180 Q440,160 450,200 T500,180" fill="none" stroke="#E9D5FF" stroke-width="3"/>
+    <path d="M380,160 Q420,180 430,140 T480,160" fill="none" stroke="#E9D5FF" stroke-width="3"/>
+  </g>
+</svg>
