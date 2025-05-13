@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // GET a specific badge
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = await verifyAuth(request);
@@ -17,7 +17,7 @@ export async function GET(
       );
     }
     
-    const badgeId = context.params.id;
+    const badgeId = params.id;
     
     // Get the badge with its modules and tasks
     const badge = await prisma.badge.findUnique({
@@ -89,7 +89,7 @@ export async function GET(
 // UPDATE a badge (admin only)
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = await verifyAuth(request);
@@ -114,7 +114,7 @@ export async function PUT(
       );
     }
     
-    const badgeId = context.params.id;
+    const badgeId = params.id;
     const body = await request.json();
     
     // Validate the badge exists
@@ -164,7 +164,7 @@ export async function PUT(
 // DELETE a badge (admin only)
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = await verifyAuth(request);
@@ -189,7 +189,7 @@ export async function DELETE(
       );
     }
     
-    const badgeId = context.params.id;
+    const badgeId = params.id;
     
     // Validate the badge exists
     const existingBadge = await prisma.badge.findUnique({

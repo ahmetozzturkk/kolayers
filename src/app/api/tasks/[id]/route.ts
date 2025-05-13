@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // GET a specific task
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = await verifyAuth(request);
@@ -17,7 +17,7 @@ export async function GET(
       );
     }
     
-    const taskId = context.params.id;
+    const taskId = params.id;
     
     // Get the task
     const task = await prisma.task.findUnique({
@@ -71,7 +71,7 @@ export async function GET(
 // UPDATE a task (admin only)
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = await verifyAuth(request);
@@ -96,7 +96,7 @@ export async function PUT(
       );
     }
     
-    const taskId = context.params.id;
+    const taskId = params.id;
     const body = await request.json();
     
     // Validate the task exists
@@ -161,7 +161,7 @@ export async function PUT(
 // DELETE a task (admin only)
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = await verifyAuth(request);
@@ -186,7 +186,7 @@ export async function DELETE(
       );
     }
     
-    const taskId = context.params.id;
+    const taskId = params.id;
     
     // Validate the task exists
     const existingTask = await prisma.task.findUnique({
