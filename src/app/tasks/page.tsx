@@ -318,13 +318,30 @@ function TasksContent() {
     const badge = badges.find(b => b.id === moduleItem.badgeId);
     if (!badge) return;
     
-    // Check if all tasks for modules in this badge are completed
-    const badgeModules = modules.filter(m => m.badgeId === badge.id);
+    // Check if all required modules for this badge are completed
+    // First consider the requiredToComplete array if it exists and is not empty
+    let requiredModuleIds = badge.requiredToComplete || [];
+    
+    // If requiredToComplete is empty, fallback to all modules with this badge ID
+    if (!requiredModuleIds.length) {
+      console.log(`Badge ${badge.id} doesn't have requiredToComplete modules, checking all modules with this badgeId`);
+      const badgeModules = modules.filter(m => m.badgeId === badge.id);
+      requiredModuleIds = badgeModules.map(m => m.id);
+    }
+    
+    console.log(`Checking completion for badge ${badge.id} (${badge.title})`);
+    console.log(`Required modules: ${requiredModuleIds.join(', ')}`);
+    
+    // Get all tasks for the required modules
+    const requiredModules = modules.filter(m => requiredModuleIds.includes(m.id));
     const allTasksForBadge = tasksState.filter(t => 
-      badgeModules.some(m => m.id === t.moduleId)
+      requiredModules.some(m => m.id === t.moduleId)
     );
     
-    // Check if all tasks are completed
+    console.log(`Required tasks count: ${allTasksForBadge.length}`);
+    console.log(`Completed required tasks: ${allTasksForBadge.filter(t => t.completed).length}`);
+    
+    // Check if all required tasks are completed
     const allCompleted = allTasksForBadge.every(t => t.completed);
     
     if (allCompleted) {

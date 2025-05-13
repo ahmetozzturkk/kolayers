@@ -378,163 +378,48 @@ export const mockDataHelpers = {
       if (!task.id) {
         task.id = `task${tasks.length + 1}`;
       }
-      
-      // Make sure the task type is preserved both in taskType and content
-      if (task.content?.taskType && !task.taskType) {
-        task.taskType = task.content.taskType;
-      } else if (task.taskType && (!task.content || !task.content.taskType)) {
-        // Make sure we have a content object
-        if (!task.content) {
-          task.content = {
-            title: task.title,
-            taskType: task.taskType
-          };
-        } else {
-          task.content.taskType = task.taskType;
-          if (!task.content.title) {
-            task.content.title = task.title;
-          }
-        }
+      // Make sure content exists
+      if (!task.content) {
+        task.content = {
+          sections: []
+        };
       }
-      
-      // Set the right content properties based on taskType
-      if (task.content && task.taskType) {
-        // Reset all task type flags first
-        task.content.isQuiz = false;
-        task.content.isApplication = false;
-        task.content.isVideo = false;
-        task.content.isReferral = false;
-        task.content.isReading = false;
-        task.content.readingTime = 0;
-        
-        // Then set the appropriate one based on taskType
-        switch (task.taskType) {
-          case 'quiz':
-            task.content.isQuiz = true;
-            break;
-          case 'application':
-            task.content.isApplication = true;
-            break;
-          case 'video':
-            task.content.isVideo = true;
-            break;
-          case 'referral':
-            task.content.isReferral = true;
-            break;
-          case 'reading':
-            task.content.isReading = true;
-            task.content.readingTime = task.content.readingTime || 30; // Default reading time
-            break;
-        }
-        
-        console.log(`Task ${task.id} saved with type ${task.taskType}`, task.content);
-      }
-      
       tasks.push(task);
       
-      // Also update the related module's tasks array
-      const moduleIndex = modules.findIndex(m => m.id === task.moduleId);
-      if (moduleIndex !== -1) {
-        if (!modules[moduleIndex].tasks) {
-          modules[moduleIndex].tasks = [];
+      // Add this task to its module's tasks array
+      if (task.moduleId) {
+        const moduleIndex = modules.findIndex(m => m.id === task.moduleId);
+        if (moduleIndex !== -1) {
+          if (!modules[moduleIndex].tasks) {
+            modules[moduleIndex].tasks = [];
+          }
+          modules[moduleIndex].tasks.push(task);
         }
-        modules[moduleIndex].tasks.push(task);
       }
       
       return task;
     } else {
       const index = tasks.findIndex(t => t.id === task.id);
       if (index !== -1) {
-        // Handle module changes
-        const oldModuleId = tasks[index].moduleId;
-        const newModuleId = task.moduleId;
-        
-        if (oldModuleId !== newModuleId) {
-          // Remove from old module's tasks
-          const oldModuleIndex = modules.findIndex(m => m.id === oldModuleId);
-          if (oldModuleIndex !== -1 && modules[oldModuleIndex].tasks) {
-            modules[oldModuleIndex].tasks = modules[oldModuleIndex].tasks.filter(t => t.id !== task.id);
-          }
-          
-          // Add to new module's tasks
-          const newModuleIndex = modules.findIndex(m => m.id === newModuleId);
-          if (newModuleIndex !== -1) {
-            if (!modules[newModuleIndex].tasks) {
-              modules[newModuleIndex].tasks = [];
-            }
-            modules[newModuleIndex].tasks.push({...tasks[index], ...task});
-          }
+        // Preserve content unless specifically updated
+        if (!task.content) {
+          task.content = tasks[index].content;
         }
-        
-        // Preserve existing content if present in sessionStorage
-        const storedContent = sessionStorage.getItem(`task_content_${task.id}`);
-        if (storedContent) {
-          try {
-            const content = JSON.parse(storedContent);
-            task.content = content;
-            
-            // Make sure the taskType property is consistent with the content
-            if (content.taskType && !task.taskType) {
-              task.taskType = content.taskType;
-            }
-          } catch (e) {
-            console.error('Error parsing stored task content:', e);
-          }
-        }
-        
-        // Make sure task.content.title is set from task.title if needed
-        if (task.content && !task.content.title && task.title) {
-          task.content.title = task.title;
-        }
-        
-        // Make sure we sync up taskType between task and task.content
-        if (task.taskType && task.content && !task.content.taskType) {
-          task.content.taskType = task.taskType;
-        } else if (task.content?.taskType && !task.taskType) {
-          task.taskType = task.content.taskType;
-        }
-
-        // Set the right content properties based on taskType
-        if (task.content && task.taskType) {
-          // Reset all task type flags first
-          task.content.isQuiz = false;
-          task.content.isApplication = false;
-          task.content.isVideo = false;
-          task.content.isReferral = false;
-          task.content.isReading = false;
-          task.content.readingTime = 0;
-          
-          // Then set the appropriate one based on taskType
-          switch (task.taskType) {
-            case 'quiz':
-              task.content.isQuiz = true;
-              break;
-            case 'application':
-              task.content.isApplication = true;
-              break;
-            case 'video':
-              task.content.isVideo = true;
-              break;
-            case 'referral':
-              task.content.isReferral = true;
-              break;
-            case 'reading':
-              task.content.isReading = true;
-              task.content.readingTime = task.content.readingTime || 30; // Default reading time
-              break;
-          }
-          
-          console.log(`Task ${task.id} updated with type ${task.taskType}`, task.content);
-        }
-
         tasks[index] = { ...tasks[index], ...task };
         
-        // If the task is part of a module, update it there too
-        const moduleIndex = modules.findIndex(m => m.id === newModuleId);
-        if (moduleIndex !== -1 && modules[moduleIndex].tasks) {
-          const taskIndex = modules[moduleIndex].tasks.findIndex(t => t.id === task.id);
-          if (taskIndex !== -1) {
-            modules[moduleIndex].tasks[taskIndex] = { ...modules[moduleIndex].tasks[taskIndex], ...task };
+        // Update this task in its module's tasks array
+        if (task.moduleId) {
+          const moduleIndex = modules.findIndex(m => m.id === task.moduleId);
+          if (moduleIndex !== -1) {
+            if (!modules[moduleIndex].tasks) {
+              modules[moduleIndex].tasks = [];
+            }
+            const taskIndex = modules[moduleIndex].tasks.findIndex(t => t.id === task.id);
+            if (taskIndex !== -1) {
+              modules[moduleIndex].tasks[taskIndex] = tasks[index];
+            } else {
+              modules[moduleIndex].tasks.push(tasks[index]);
+            }
           }
         }
         

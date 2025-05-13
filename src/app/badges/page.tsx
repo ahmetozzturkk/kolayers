@@ -434,6 +434,8 @@ export default function BadgesPage() {
   // Function to close details modal
   const closeDetails = () => {
     setIsDetailsOpen(false);
+    // Force refresh badge data
+    setSelectedBadge(null);
   };
   
   // Helper function to get badge icon
@@ -455,6 +457,91 @@ export default function BadgesPage() {
     if (startedBadges[badge.id]) return 'In Progress';
     // If neither earned nor in progress, it's locked
     return 'Locked';
+  };
+
+  // Add this function with other state declarations at the top of the component
+  const resetBadgeProgress = (badgeId) => {
+    if (typeof window !== 'undefined') {
+      try {
+        // Get the badge
+        const badge = badges.find(b => b.id === badgeId);
+        if (!badge) return;
+        
+        // Get saved completed tasks
+        const savedCompletedTasks = localStorage.getItem('completedTasks');
+        if (!savedCompletedTasks) return;
+        
+        const completedTaskIds = JSON.parse(savedCompletedTasks);
+        
+        // Get all modules for this badge
+        const badgeModules = modules.filter(m => m.badgeId === badgeId);
+        
+        // Get all tasks for these modules
+        const badgeTasks = initialTasks.filter(task => 
+          badgeModules.some(m => m.id === task.moduleId)
+        );
+        
+        // Check if all tasks are completed
+        const allCompleted = badgeTasks.every(task => 
+          completedTaskIds.includes(task.id)
+        );
+        
+        console.log(`Checking badge ${badgeId} completion status:`, 
+          { totalTasks: badgeTasks.length, completedTasks: badgeTasks.filter(t => completedTaskIds.includes(t.id)).length }
+        );
+        
+        if (allCompleted) {
+          // This badge should be earned, update localStorage
+          console.log(`All tasks for badge ${badgeId} are completed. Marking as earned.`);
+          
+          // Get existing earned badges
+          let earnedBadges = [];
+          const savedEarnedBadges = localStorage.getItem('earnedBadges');
+          if (savedEarnedBadges) {
+            earnedBadges = JSON.parse(savedEarnedBadges);
+          }
+          
+          // Add this badge if not already in the list
+          if (!earnedBadges.includes(badgeId)) {
+            earnedBadges.push(badgeId);
+            localStorage.setItem('earnedBadges', JSON.stringify(earnedBadges));
+            
+            // Mark badge as earned
+            badge.earned = true;
+            
+            // Remove from startedBadges if present
+            if (startedBadges[badgeId]) {
+              const updatedStartedBadges = { ...startedBadges };
+              delete updatedStartedBadges[badgeId];
+              setStartedBadges(updatedStartedBadges);
+              localStorage.setItem('startedBadges', JSON.stringify(updatedStartedBadges));
+            }
+            
+            // Refresh the UI
+            const updatedBadgeModules = badgeModules.map(module => ({
+              ...module,
+              tasks: initialTasks.filter(task => task.moduleId === module.id).map(task => ({
+                ...task,
+                completed: completedTaskIds.includes(task.id)
+              }))
+            }));
+            
+            // Force a refresh of the badge modules state
+            setBadgeModules(prev => prev.map(b => 
+              b.id === badgeId 
+                ? { ...b, earned: true, modulesList: updatedBadgeModules } 
+                : b
+            ));
+            
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error('Error resetting badge progress:', e);
+      }
+    }
+    
+    return false;
   };
 
   return (
@@ -560,7 +647,7 @@ export default function BadgesPage() {
               <div className="absolute top-2 right-2">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   badge.earned 
-                    ? 'bg-emerald-100 text-emerald-800' 
+                    ? 'bg-green-100 text-green-800' 
                     : startedBadges[badge.id]
                       ? 'bg-amber-100 text-amber-800'
                       : 'bg-gray-100 text-gray-600'
@@ -572,7 +659,7 @@ export default function BadgesPage() {
               {/* Badge Icon */}
               <div className={`w-20 h-20 ${
                 badge.earned 
-                  ? 'bg-mint-400' 
+                  ? 'bg-green-400' 
                   : startedBadges[badge.id] 
                     ? 'bg-amber-400' 
                     : badge.backgroundColor 
@@ -600,7 +687,7 @@ export default function BadgesPage() {
                 <div 
                   className={`h-full ${
                     isBadgeEarned(badge) 
-                      ? 'bg-mint-400' 
+                      ? 'bg-green-400' 
                       : startedBadges[badge.id] 
                         ? 'bg-amber-400' 
                         : 'bg-lavender-400'
@@ -670,7 +757,7 @@ export default function BadgesPage() {
               <div className="flex items-start mb-6">
                 <div className={`w-20 h-20 ${
                   selectedBadge.earned 
-                    ? 'bg-mint-400' 
+                    ? 'bg-green-400' 
                     : startedBadges[selectedBadge.id] 
                       ? 'bg-amber-400' 
                       : selectedBadge.backgroundColor
@@ -691,7 +778,7 @@ export default function BadgesPage() {
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       selectedBadge.earned 
-                        ? 'bg-emerald-100 text-emerald-800' 
+                        ? 'bg-green-100 text-green-800' 
                         : startedBadges[selectedBadge.id]
                           ? 'bg-amber-100 text-amber-800'
                           : 'bg-gray-100 text-gray-600'
@@ -775,6 +862,58 @@ export default function BadgesPage() {
                   ))}
                 </div>
               </div>
+              
+              {/* Add a debug section before the Button Actions */}
+              {!selectedBadge.earned && (
+                <div className="mt-6 border-t border-gray-200 pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Badge Debug Information</h3>
+                    <button 
+                      onClick={() => {
+                        const fixed = resetBadgeProgress(selectedBadge.id);
+                        if (fixed) {
+                          alert('Badge progress has been fixed. The badge is now earned.');
+                          closeDetails();
+                        } else {
+                          alert('Could not fix badge progress. Not all tasks are completed yet.');
+                        }
+                      }}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      Fix Progress
+                    </button>
+                  </div>
+                  
+                  <div className="text-xs text-gray-600">
+                    <p className="mb-1">Required modules: {selectedBadge.requiredToComplete && selectedBadge.requiredToComplete.length > 0 
+                      ? selectedBadge.requiredToComplete.join(', ') 
+                      : 'All modules with this badge ID'}</p>
+                      
+                    <div className="mt-2 space-y-2">
+                      <p className="font-medium">Module Completion Status:</p>
+                      {selectedBadge.modulesList.map(moduleItem => (
+                        <div key={moduleItem.id} className="flex justify-between">
+                          <span>{moduleItem.title}</span>
+                          <span className={moduleItem.tasks && moduleItem.tasks.every(t => t.completed) 
+                            ? 'text-green-600' 
+                            : 'text-red-600'}>
+                            {moduleItem.tasks 
+                              ? `${moduleItem.tasks.filter(t => t.completed).length}/${moduleItem.tasks.length} tasks`
+                              : 'No tasks'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <p className="mt-3">
+                      {typeof window !== 'undefined' && localStorage.getItem('earnedBadges') && 
+                       JSON.parse(localStorage.getItem('earnedBadges') || '[]').includes(selectedBadge.id)
+                        ? 'This badge is marked as earned in localStorage.'
+                        : 'This badge is NOT marked as earned in localStorage.'}
+                    </p>
+                  </div>
+                </div>
+              )}
               
               {/* Button Actions */}
               <div className="flex justify-end space-x-3">

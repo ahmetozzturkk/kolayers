@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { badges, modules, certificates, rewards, tasks, mockDataHelpers } from '../../lib/mockData';
 import { Badge, Module, Certificate, Reward, Task, TaskContent } from '../../types';
+import CreationWizard, { WizardItemType } from '../../components/CreationWizard';
+import CreationFlowWizard from '../../components/CreationFlowWizard';
 
 // Quiz question type
 interface QuizQuestion {
@@ -28,6 +30,8 @@ export default function AdminPage() {
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showCreationWizard, setShowCreationWizard] = useState(false);
+  const [showFlowWizard, setShowFlowWizard] = useState(false);
 
   // State to track selected items for editing
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
@@ -1110,50 +1114,67 @@ export default function AdminPage() {
     }));
   };
 
+  // New function to handle creation wizard selection
+  const handleCreateFromWizard = (type: WizardItemType) => {
+    handleCreate(type);
+  };
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-      <p className="text-gray-600 mb-4">Manage content and track user progress</p>
-      
-      {/* Workflow Guide */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
-        <h2 className="text-lg font-semibold text-blue-800 mb-2">Content Creation Workflow</h2>
-        <div className="flex flex-wrap items-center">
-          <div className="flex items-center mr-4 mb-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">1</div>
-            <span className="ml-2 text-blue-800">Create Modules</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mx-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+    <main className="container mx-auto py-8 px-4">
+      {/* Top Admin Controls */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+          <button
+            onClick={() => setShowCreationWizard(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center justify-center"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
-          </div>
-          <div className="flex items-center mr-4 mb-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">2</div>
-            <span className="ml-2 text-blue-800">Add Tasks to Modules</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mx-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            Create Single Item
+          </button>
+          <button
+            onClick={() => setShowFlowWizard(true)}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-lg text-sm font-medium flex items-center justify-center shadow-md"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
             </svg>
+            Create Learning Path
+          </button>
+        </div>
+      </div>
+
+      {/* Admin Help Card */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border border-blue-100 mb-8 shadow-sm">
+        <h2 className="text-lg font-semibold text-indigo-800 mb-2">Creating Content Made Easy</h2>
+        <p className="text-gray-700 mb-3">Welcome to the admin dashboard! Here you can create and manage all the content for your learning platform.</p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-indigo-100">
+            <h3 className="font-medium text-indigo-700 mb-2 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+              Single Item Creation
+            </h3>
+            <p className="text-sm text-gray-600">Create individual badges, modules, or tasks one at a time. This is perfect when you need to add one specific item.</p>
           </div>
-          <div className="flex items-center mr-4 mb-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">3</div>
-            <span className="ml-2 text-blue-800">Create Badges for Modules</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mx-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex items-center mr-4 mb-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">4</div>
-            <span className="ml-2 text-blue-800">Create Certificates for Badges</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mx-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex items-center mb-2">
-            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">5</div>
-            <span className="ml-2 text-blue-800">Create Rewards for Badges</span>
+          
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-green-100">
+            <h3 className="font-medium text-green-700 mb-2 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
+              </svg>
+              Complete Learning Path
+            </h3>
+            <p className="text-sm text-gray-600">Create a full learning path in one go - badge, module, and task all connected. Perfect for building structured learning experiences.</p>
           </div>
         </div>
       </div>
-      
+
+      {/* The rest of your component... */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Modules Management */}
         <section className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
@@ -2836,6 +2857,71 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Creation Wizard Modal */}
+      {showCreationWizard && (
+        <CreationWizard
+          onCreateItem={handleCreateFromWizard}
+          onClose={() => setShowCreationWizard(false)}
+        />
+      )}
+
+      {/* Flow Wizard Modal */}
+      {showFlowWizard && (
+        <CreationFlowWizard
+          onSaveBadge={(badgeData) => {
+            const isNew = !badgeData.id;
+            const newBadge = mockDataHelpers.saveBadge(badgeData as Badge, isNew);
+            
+            // Save to localStorage
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('customBadges', JSON.stringify(badges));
+                console.log('Saved badges to localStorage:', badges);
+              } catch (e) {
+                console.error('Error saving to localStorage:', e);
+              }
+            }
+            
+            return newBadge;
+          }}
+          onSaveModule={(moduleData) => {
+            const isNew = !moduleData.id;
+            const newModule = mockDataHelpers.saveModule(moduleData as Module, isNew);
+            
+            // Save to localStorage
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('customModules', JSON.stringify(modules));
+                console.log('Saved modules to localStorage:', modules);
+              } catch (e) {
+                console.error('Error saving to localStorage:', e);
+              }
+            }
+            
+            return newModule;
+          }}
+          onSaveTask={(taskData) => {
+            const isNew = !taskData.id;
+            const newTask = mockDataHelpers.saveTask(taskData as Task, isNew);
+            
+            // Save to localStorage
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('customTasks', JSON.stringify(tasks));
+                console.log('Saved tasks to localStorage:', tasks);
+              } catch (e) {
+                console.error('Error saving to localStorage:', e);
+              }
+            }
+            
+            return newTask;
+          }}
+          onClose={() => setShowFlowWizard(false)}
+          badges={badges}
+          modules={modules}
+        />
+      )}
+    </main>
   );
 } 
