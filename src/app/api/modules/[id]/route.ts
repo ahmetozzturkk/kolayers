@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET a specific module
 export async function GET(
@@ -22,7 +20,7 @@ export async function GET(
     const moduleId = params.id;
     
     // Get the module with its tasks and badge
-    const module = await prisma.module.findUnique({
+    const moduleData = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
         tasks: {
@@ -34,7 +32,7 @@ export async function GET(
       }
     });
     
-    if (!module) {
+    if (!moduleData) {
       return NextResponse.json(
         { error: 'Module not found' },
         { status: 404 }
@@ -42,7 +40,7 @@ export async function GET(
     }
     
     // Get user's progress for tasks in this module
-    const taskIds = module.tasks.map(task => task.id);
+    const taskIds = moduleData.tasks.map(task => task.id);
     
     const userProgress = await prisma.userProgress.findMany({
       where: {
@@ -52,7 +50,7 @@ export async function GET(
     });
     
     // Enhance tasks with user progress
-    const tasksWithProgress = module.tasks.map(task => {
+    const tasksWithProgress = moduleData.tasks.map(task => {
       const progress = userProgress.find(p => p.taskId === task.id);
       
       return {
@@ -76,7 +74,7 @@ export async function GET(
     
     // Enhance the module with progress information
     const moduleWithProgress = {
-      ...module,
+      ...moduleData,
       tasks: tasksWithProgress,
       progress: progressPercentage,
       completed,
@@ -109,11 +107,18 @@ export async function PUT(
       );
     }
     
-    // In a real app, check if user is admin
-    // const user = await prisma.user.findUnique({ where: { id: userId } });
-    // if (!user.isAdmin) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
     
     const moduleId = params.id;
     const body = await request.json();
@@ -127,6 +132,14 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Module not found' },
         { status: 404 }
+      );
+    }
+    
+    // Validate input data
+    if (body.order && typeof body.order !== 'number') {
+      return NextResponse.json(
+        { error: 'Order must be a number' },
+        { status: 400 }
       );
     }
     
@@ -166,11 +179,18 @@ export async function DELETE(
       );
     }
     
-    // In a real app, check if user is admin
-    // const user = await prisma.user.findUnique({ where: { id: userId } });
-    // if (!user.isAdmin) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
     
     const moduleId = params.id;
     

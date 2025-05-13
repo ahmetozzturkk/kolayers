@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET all modules with their tasks
 export async function GET(request: NextRequest) {
@@ -80,7 +78,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication (with admin check)
+    // Verify authentication
     const userId = await verifyAuth(request);
     
     if (!userId) {
@@ -90,11 +88,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // In a real app, check if user is admin
-    // const user = await prisma.user.findUnique({ where: { id: userId } });
-    // if (!user.isAdmin) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
     
     const body = await request.json();
     
@@ -106,18 +111,25 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate order is a number
+    if (body.order && typeof body.order !== 'number') {
+      return NextResponse.json(
+        { error: 'Order must be a number' },
+        { status: 400 }
+      );
+    }
+    
     // Create the module
-    const module = await prisma.module.create({
+    const moduleData = await prisma.module.create({
       data: {
         title: body.title,
         description: body.description,
         order: body.order || 1,
-        badgeId: body.badgeId,
-        completed: false
+        badgeId: body.badgeId
       }
     });
     
-    return NextResponse.json(module, { status: 201 });
+    return NextResponse.json(moduleData, { status: 201 });
   } catch (error) {
     console.error('Error creating module:', error);
     return NextResponse.json(

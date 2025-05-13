@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET a specific task
 export async function GET(
@@ -85,11 +83,18 @@ export async function PUT(
       );
     }
     
-    // In a real app, check if user is admin
-    // const user = await prisma.user.findUnique({ where: { id: userId } });
-    // if (!user.isAdmin) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
     
     const taskId = params.id;
     const body = await request.json();
@@ -103,6 +108,28 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Task not found' },
         { status: 404 }
+      );
+    }
+    
+    // Validate input data
+    if (body.points && typeof body.points !== 'number') {
+      return NextResponse.json(
+        { error: 'Points must be a number' },
+        { status: 400 }
+      );
+    }
+    
+    if (body.estimatedTime && typeof body.estimatedTime !== 'number') {
+      return NextResponse.json(
+        { error: 'Estimated time must be a number' },
+        { status: 400 }
+      );
+    }
+    
+    if (body.order && typeof body.order !== 'number') {
+      return NextResponse.json(
+        { error: 'Order must be a number' },
+        { status: 400 }
       );
     }
     
@@ -146,11 +173,18 @@ export async function DELETE(
       );
     }
     
-    // In a real app, check if user is admin
-    // const user = await prisma.user.findUnique({ where: { id: userId } });
-    // if (!user.isAdmin) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
     
     const taskId = params.id;
     

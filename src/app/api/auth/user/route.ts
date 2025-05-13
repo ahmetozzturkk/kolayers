@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +23,7 @@ export async function GET(request: NextRequest) {
         email: true,
         image: true,
         points: true,
+        isAdmin: true,
         createdAt: true,
         earnedBadges: {
           include: {
@@ -69,56 +68,50 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Add PATCH method to update user profile
-export async function PATCH(request: Request) {
+// Update user profile
+export async function PATCH(request: NextRequest) {
   try {
-    // Get token from cookies safely using await
-    const cookieJar = await cookies();
-    const token = cookieJar.get('token')?.value;
-
-    if (!token) {
+    // Verify authentication
+    const userId = await verifyAuth(request);
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    try {
-      // Verify token using jose
-      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
-      const { payload } = await jose.jwtVerify(token, secret);
-      const decoded = payload as { id: string; email: string; name: string };
-
-      // Get request body
-      const body = await request.json();
-      const { name, image } = body;
-
-      // Update user in database
-      const updatedUser = await prisma.user.update({
-        where: { id: decoded.id },
-        data: {
-          ...(name && { name }),
-          ...(image && { image }),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          createdAt: true,
-          updatedAt: true
-        }
-      });
-
-      // Return updated user data
-      return NextResponse.json(updatedUser);
-    } catch (verifyError) {
-      console.error('Token verification error:', verifyError);
+    // Get request body
+    const body = await request.json();
+    const { name, image } = body;
+    
+    // Prevent updating critical fields
+    if (body.email || body.password || body.points || body.isAdmin) {
       return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
+        { error: 'Cannot update email, password, points, or admin status through this endpoint' },
+        { status: 400 }
       );
     }
+
+    // Update user in database
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(name && { name }),
+        ...(image && { image }),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    // Return updated user data
+    return NextResponse.json(updatedUser);
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json(

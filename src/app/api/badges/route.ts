@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET all badges with progress information
 export async function GET(request: NextRequest) {
@@ -76,6 +74,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify authentication
+    const userId = await verifyAuth(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
+    
     const body = await request.json();
     
     // Validate required fields
@@ -86,11 +107,26 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    if (!body.imageUrl) {
+      return NextResponse.json(
+        { error: 'Image URL is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate points is a number
+    if (body.points && typeof body.points !== 'number') {
+      return NextResponse.json(
+        { error: 'Points must be a number' },
+        { status: 400 }
+      );
+    }
+    
     const badge = await prisma.badge.create({
       data: {
         title: body.title,
         description: body.description,
-        imageUrl: body.imageUrl || '',
+        imageUrl: body.imageUrl,
         backgroundColor: body.backgroundColor || '#7c3aed',
         icon: body.icon || '📝',
         points: body.points || 0,

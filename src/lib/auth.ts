@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Verify JWT token from request cookies
 export async function verifyAuth(request: NextRequest): Promise<string | null> {
   try {
     // Get the token from cookies
-    const cookieStore = cookies();
-    const token = cookieStore.get('token')?.value;
+    const token = request.cookies.get('token')?.value;
     
     if (!token) {
       return null;

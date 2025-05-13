@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET admin statistics
 export async function GET(request: NextRequest) {
@@ -16,11 +14,18 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // In a real app, check if user is admin
-    // const user = await prisma.user.findUnique({ where: { id: userId } });
-    // if (!user.isAdmin) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
+      );
+    }
     
     // Get basic statistics
     const [

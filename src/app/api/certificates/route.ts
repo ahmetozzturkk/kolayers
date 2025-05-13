@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,13 +71,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication (admin check would be here in production)
+    // Verify authentication
     const userId = await verifyAuth(request);
     
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+    
+    // Check if user is admin
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId }
+    });
+    
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden - Admin access required' }, 
+        { status: 403 }
       );
     }
     
@@ -93,12 +103,19 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    if (!body.imageUrl) {
+      return NextResponse.json(
+        { error: 'Image URL is required' },
+        { status: 400 }
+      );
+    }
+    
     // Create certificate with badge requirements
     const certificate = await prisma.certificate.create({
       data: {
         title: body.title,
         description: body.description,
-        imageUrl: body.imageUrl || '',
+        imageUrl: body.imageUrl,
         badgesRequired: {
           create: body.badgesRequired.map(badgeId => ({
             badge: { connect: { id: badgeId } }

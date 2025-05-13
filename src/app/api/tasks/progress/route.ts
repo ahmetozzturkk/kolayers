@@ -116,11 +116,11 @@ async function checkAndUpdateModuleCompletion(userId: string, taskId: string) {
     
     // Update module completion status if needed
     if (allTasksCompleted) {
-      const module = await prisma.module.findUnique({
+      const moduleRecord = await prisma.module.findUnique({
         where: { id: task.moduleId }
       });
       
-      if (module && !module.completed) {
+      if (moduleRecord && !moduleRecord.completed) {
         await prisma.module.update({
           where: { id: task.moduleId },
           data: { completed: true }
@@ -144,16 +144,16 @@ async function checkAndUpdateBadgeCompletion(userId: string, taskId: string) {
     if (!task) return;
     
     // Find the badge for this module
-    const module = await prisma.module.findUnique({
+    const moduleData = await prisma.module.findUnique({
       where: { id: task.moduleId },
       select: { badgeId: true }
     });
     
-    if (!module?.badgeId) return;
+    if (!moduleData?.badgeId) return;
     
     // Get the badge with its required modules
     const badge = await prisma.badge.findUnique({
-      where: { id: module.badgeId },
+      where: { id: moduleData.badgeId },
       include: { modules: true }
     });
     

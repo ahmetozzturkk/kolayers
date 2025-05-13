@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET user profile
 export async function GET(request: NextRequest) {
@@ -25,6 +23,7 @@ export async function GET(request: NextRequest) {
         email: true,
         image: true,
         points: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true,
         earnedBadges: {
@@ -81,9 +80,9 @@ export async function PATCH(request: NextRequest) {
     const { name, image } = body;
     
     // Prevent updating critical fields
-    if (body.email || body.password || body.points) {
+    if (body.email || body.password || body.points || body.isAdmin) {
       return NextResponse.json(
-        { error: 'Cannot update email, password, or points through this endpoint' },
+        { error: 'Cannot update email, password, points, or admin status through this endpoint' },
         { status: 400 }
       );
     }
