@@ -21,46 +21,114 @@ A Next.js app for task-based learning with modules, badges, and progress trackin
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: JWT with HTTP-only cookies
 
-## Setup
+## Transitioning from Mock Data to Real Database
 
-1. **Clone the repository**
+Follow these steps to transition from mock data to using a real PostgreSQL database:
+
+## Prerequisites
+
+- PostgreSQL database (can be hosted on services like [Supabase](https://supabase.com/), [Railway](https://railway.app/), [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), or your own server)
+- Node.js 16.x or later
+- Vercel account for deployment
+
+## Setup Instructions
+
+### 1. Set up the database
+
+1. Create a PostgreSQL database instance
+2. Add your database connection string to `.env` and Vercel environment variables:
 
 ```
-git clone <repository-url>
+DATABASE_URL="postgresql://username:password@hostname:port/database?schema=public"
+```
+
+### 2. Set up the project
+
+1. Clone the repository:
+```
+git clone https://github.com/ahmetozzturkk/kolayers.git
 cd kolayers
 ```
 
-2. **Install dependencies**
-
+2. Install dependencies:
 ```
 npm install
 ```
 
-3. **Set up environment variables**
-
-Create a `.env` file in the root directory:
-
-```
-DATABASE_URL="postgresql://postgres:password@localhost:5432/kolayers"
-NEXTAUTH_SECRET="your-secret-key-here"
-NEXTAUTH_URL="http://localhost:3000"
-```
-
-4. **Set up the database**
-
-Make sure PostgreSQL is running, then:
-
+3. Generate Prisma client:
 ```
 npm run prisma:generate
+```
+
+4. Apply the database migrations:
+```
 npm run prisma:migrate
+```
+
+5. Seed the database with initial data:
+```
 npm run db:seed
 ```
 
-5. **Start the development server**
+### 3. Configure authentication
 
+1. Create a JWT secret and add it to your environment variables:
+```
+JWT_SECRET="your-secret-key-here"
+```
+
+2. Update the authentication settings in your environment:
+```
+NEXTAUTH_SECRET="your-nextauth-secret"
+NEXTAUTH_URL="https://your-deployment-url.com"
+```
+
+### 4. Deploy to Vercel
+
+1. Connect your GitHub repository to Vercel
+2. Configure the environment variables in Vercel
+3. Deploy your application
+
+## API Routes
+
+The application provides the following API endpoints:
+
+- **GET /api/badges** - Get all badges
+- **POST /api/badges** - Create a badge
+- **GET /api/modules** - Get all modules
+- **GET /api/tasks** - Get all tasks
+- **POST /api/user/progress** - Update user progress
+
+## Data Migration
+
+When migrating real users' data, ensure you:
+
+1. Export your existing mock data using `localStorage`
+2. Transform the data to match the Prisma schema
+3. Import the data using a custom script or the Prisma seed script
+
+## Development Workflow
+
+1. Use Prisma Studio to view and edit data during development:
+```
+npm run prisma:studio
+```
+
+2. Run the development server:
 ```
 npm run dev
 ```
+
+3. Making schema changes:
+```
+npx prisma migrate dev --name <migration-name>
+```
+
+## User Authentication Flow
+
+1. Users sign up via the `/login` page
+2. JWT tokens are used for authentication
+3. Protected routes check the user's session
 
 ## API Endpoints
 

@@ -1,57 +1,75 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import * as jose from 'jose';
+import { jwtVerify } from 'jose';
 
-// Public paths that don't require authentication
-const publicPaths = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register'];
+// Define which routes require authentication
+const protectedRoutes = [
+  '/dashboard',
+  '/badges',
+  '/modules',
+  '/tasks',
+  '/admin',
+  '/profile',
+];
+
+// Define which routes should redirect to dashboard if already logged in
+const authRoutes = [
+  '/login',
+  '/signup',
+];
 
 export async function middleware(request: NextRequest) {
+  // Get token from cookies
+  const token = request.cookies.get('token')?.value;
   const { pathname } = request.nextUrl;
   
-  // Allow access to public paths
-  if (publicPaths.includes(pathname)) {
-    return NextResponse.next();
-  }
+  // Check if visiting a protected route
+  const isProtectedRoute = protectedRoutes.some(route => 
+    pathname.startsWith(route)
+  );
   
-  // Allow access to static files and API routes that don't need auth
-  if (
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/static') || 
-    pathname.includes('.') ||
-    (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/user'))
-  ) {
-    return NextResponse.next();
-  }
-
-  // Check for token in cookies
-  const token = request.cookies.get('token')?.value;
+  // Check if visiting an auth route (login/signup)
+  const isAuthRoute = authRoutes.some(route => 
+    pathname.startsWith(route)
+  );
   
-  if (!token) {
-    // No token found, redirect to login
+  // Not logged in and trying to access protected route
+  if (isProtectedRoute && !token) {
     const url = new URL('/login', request.url);
-    url.searchParams.set('from', pathname);
+    url.searchParams.set('returnUrl', encodeURI(pathname));
     return NextResponse.redirect(url);
   }
-
-  try {
-    // Verify the token using jose instead of jsonwebtoken
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
-    await jose.jwtVerify(token, secret);
-    
-    // Token is valid, allow access
-    return NextResponse.next();
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    // Token is invalid, redirect to login
-    const url = new URL('/login', request.url);
-    url.searchParams.set('from', pathname);
-    return NextResponse.redirect(url);
+  
+  // Logged in and trying to access auth routes
+  if (isAuthRoute && token) {
+    try {
+      // Verify the token
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET || 'your-secret-key'
+      );
+      await jwtVerify(token, secret);
+      
+      // If token is valid, redirect to dashboard
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    } catch (error) {
+      // If token is invalid, continue to auth page
+      return NextResponse.next();
+    }
   }
+  
+  return NextResponse.next();
 }
 
-// Apply middleware to all routes except public assets
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     * - api (API routes that handle their own auth)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
   ],
 }; 

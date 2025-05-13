@@ -1,87 +1,39 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
-import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import * as jose from 'jose';
+import { NextRequest, NextResponse } from 'next/server';
+import { login, setAuthCookie } from '@/lib/auth';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password } = body;
-
+    
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Missing email or password' },
+        { error: 'Email and password are required' },
         { status: 400 }
       );
     }
-
-    // Find user with email
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    // Compare passwords
-    const passwordMatch = await bcrypt.compare(password, user.password);
-
-    if (!passwordMatch) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    // Create payload
-    const payload = { 
-      id: user.id,
-      email: user.email,
-      name: user.name 
-    };
     
-    // Create token using jose
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
-    const token = await new jose.SignJWT(payload)
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('7d')
-      .sign(secret);
-
-    // Return user without password
-    const { password: _, ...userWithoutPassword } = user;
+    const result = await login(email, password);
+    
+    if (result.error) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 401 }
+      );
+    }
     
     // Create response with user data
-    const response = NextResponse.json(userWithoutPassword);
+    const response = NextResponse.json(
+      { user: result.user },
+      { status: 200 }
+    );
     
-    // Get host from request for dynamic cookie domain
-    const host = request.headers.get('host') || '';
-    const domain = host.includes('localhost') ? undefined : 
-                  host.includes('.vercel.app') ? host : 
-                  host;
-
-    // Set token cookie with proper settings for both development and production
-    response.cookies.set({
-      name: 'token',
-      value: token,
-      httpOnly: true,
-      path: '/',
-      secure: !host.includes('localhost'),
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      // Dynamic domain based on request
-      domain: host.includes('localhost') ? undefined : undefined // Don't set domain to allow subdomains
-    });
-    
-    return response;
+    // Set auth cookie
+    return setAuthCookie(response, result.token);
   } catch (error) {
-    console.error('Error during login:', error);
+    console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'An error occurred during login' },
       { status: 500 }
     );
   }

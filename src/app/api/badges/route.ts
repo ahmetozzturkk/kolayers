@@ -1,9 +1,11 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 import { verifyAuth } from '@/lib/auth';
 
+const prisma = new PrismaClient();
+
 // GET all badges with progress information
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Verify authentication
     const userId = await verifyAuth(request);
@@ -67,6 +69,40 @@ export async function GET(request: Request) {
     console.error('Error fetching badges:', error);
     return NextResponse.json(
       { error: 'Failed to fetch badges' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    
+    // Validate required fields
+    if (!body.title || !body.description) {
+      return NextResponse.json(
+        { error: 'Title and description are required' },
+        { status: 400 }
+      );
+    }
+    
+    const badge = await prisma.badge.create({
+      data: {
+        title: body.title,
+        description: body.description,
+        imageUrl: body.imageUrl || '',
+        backgroundColor: body.backgroundColor || '#7c3aed',
+        icon: body.icon || '📝',
+        points: body.points || 0,
+        requiredToComplete: body.requiredToComplete || [],
+      }
+    });
+    
+    return NextResponse.json(badge, { status: 201 });
+  } catch (error) {
+    console.error('Error creating badge:', error);
+    return NextResponse.json(
+      { error: 'Failed to create badge' },
       { status: 500 }
     );
   }

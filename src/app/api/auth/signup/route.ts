@@ -1,51 +1,56 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { signUp, setAuthCookie } from '@/lib/auth';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, password } = body;
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: 'Missing name, email, or password' },
-        { status: 400 }
-      );
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 400 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
-    });
-
-    // Return user without password
-    const { password: _, ...userWithoutPassword } = user;
+    const { email, password, name } = body;
     
-    return NextResponse.json(userWithoutPassword, { status: 201 });
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Please provide a valid email address' },
+        { status: 400 }
+      );
+    }
+    
+    // Password validation
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters long' },
+        { status: 400 }
+      );
+    }
+    
+    const result = await signUp(email, password, name);
+    
+    if (result.error) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    }
+    
+    // Create response with user data
+    const response = NextResponse.json(
+      { user: result.user },
+      { status: 201 }
+    );
+    
+    // Set auth cookie
+    return setAuthCookie(response, result.token);
   } catch (error) {
-    console.error('Error during signup:', error);
+    console.error('Signup error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'An error occurred during signup' },
       { status: 500 }
     );
   }

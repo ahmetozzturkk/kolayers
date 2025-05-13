@@ -20,6 +20,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   userProgress  UserProgress[]
   referrals     Referral[] @relation("ReferredBy")
+  earnedBadges  EarnedBadge[]
+  earnedCertificates EarnedCertificate[]
+  claimedRewards ClaimedReward[]
+  points        Int       @default(0)
 }
 
 model Module {
@@ -28,6 +32,7 @@ model Module {
   description String
   order       Int
   badgeId     String?
+  completed   Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   tasks       Task[]
@@ -38,7 +43,7 @@ model Task {
   id          String    @id @default(cuid())
   title       String
   description String
-  type        String    // video, quiz, article, etc.
+  type        String    // regular, reading, quiz, application, video, referral
   moduleId    String
   content     Json?     // Flexible content structure based on task type
   points      Int       @default(0)
@@ -51,13 +56,87 @@ model Task {
 }
 
 model Badge {
-  id          String    @id @default(cuid())
-  title       String
-  description String
-  imageUrl    String
-  modules     Module[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  title              String
+  description        String
+  imageUrl           String
+  backgroundColor    String?   // hexadecimal color code
+  icon               String?   // emoji icon
+  points             Int       @default(0)
+  requiredToComplete String[]  // Array of module IDs required to complete
+  modules            Module[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  earnedBy           EarnedBadge[]
+  certificates       CertificateBadgeRequirement[]
+  rewardsBadgeRequirement Reward[] @relation("BadgeRequirement")
+}
+
+model Certificate {
+  id           String    @id @default(cuid())
+  title        String
+  description  String
+  imageUrl     String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  badgesRequired CertificateBadgeRequirement[]
+  earnedBy     EarnedCertificate[]
+}
+
+model CertificateBadgeRequirement {
+  certificateId String
+  badgeId       String
+  certificate   Certificate @relation(fields: [certificateId], references: [id])
+  badge         Badge      @relation(fields: [badgeId], references: [id])
+
+  @@id([certificateId, badgeId])
+}
+
+model Reward {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  imageUrl      String?
+  type          String    // badge, point
+  pointCost     Int?      // Cost in points for point-based rewards
+  badgeRequiredId String?
+  badgeRequired Badge?    @relation("BadgeRequirement", fields: [badgeRequiredId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  claimedBy     ClaimedReward[]
+}
+
+model EarnedBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model EarnedCertificate {
+  id            String   @id @default(cuid())
+  userId        String
+  certificateId String
+  earnedAt      DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  certificate   Certificate @relation(fields: [certificateId], references: [id])
+
+  @@unique([userId, certificateId])
+}
+
+model ClaimedReward {
+  id        String   @id @default(cuid())
+  userId    String
+  rewardId  String
+  claimedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  reward    Reward   @relation(fields: [rewardId], references: [id])
+
+  @@unique([userId, rewardId])
 }
 
 model UserProgress {

@@ -1,60 +1,69 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import * as jose from 'jose';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { verifyAuth } from '@/lib/auth';
 
-export async function GET() {
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
   try {
-    // Get token from cookies safely using await
-    const cookieJar = await cookies();
-    const token = cookieJar.get('token')?.value;
-
-    if (!token) {
+    // Verify authentication
+    const userId = await verifyAuth(request);
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
-
-    try {
-      // Verify token using jose
-      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
-      const { payload } = await jose.jwtVerify(token, secret);
-      const decoded = payload as { id: string; email: string; name: string };
-
-      // Get user from database (excluding password)
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          createdAt: true,
-          updatedAt: true
+    
+    // Get user data
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        points: true,
+        createdAt: true,
+        earnedBadges: {
+          include: {
+            badge: true
+          }
+        },
+        earnedCertificates: {
+          include: {
+            certificate: true
+          }
+        },
+        claimedRewards: {
+          include: {
+            reward: true
+          }
+        },
+        userProgress: {
+          select: {
+            taskId: true,
+            completed: true,
+            completedAt: true,
+            score: true
+          }
         }
-      });
-
-      if (!user) {
-        return NextResponse.json(
-          { error: 'User not found' },
-          { status: 404 }
-        );
       }
-
-      // Return user data
-      return NextResponse.json(user);
-    } catch (verifyError) {
-      console.error('Token verification error:', verifyError);
+    });
+    
+    if (!user) {
       return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
+    
+    return NextResponse.json(user);
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error('Error fetching user data:', error);
     return NextResponse.json(
-      { error: 'Server error when authenticating user' },
+      { error: 'Failed to fetch user data' },
       { status: 500 }
     );
   }
