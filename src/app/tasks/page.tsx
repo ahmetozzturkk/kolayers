@@ -442,6 +442,42 @@ function TasksContent() {
       return; // Don't allow manual completion
     }
     
+    // Prevent manually marking video tasks as complete
+    if (completed && !fromArticle && taskArticle.isVideo) {
+      console.log(`Video task ${taskId} can only be completed by watching the video`);
+      
+      setTooltipTaskId(taskId);
+      setTimeout(() => {
+        setTooltipTaskId(null);
+      }, 3000);
+      
+      return; // Don't allow manual completion
+    }
+    
+    // Prevent manually marking application tasks as complete
+    if (completed && !fromArticle && taskArticle.isApplication) {
+      console.log(`Application task ${taskId} can only be completed by clicking the link`);
+      
+      setTooltipTaskId(taskId);
+      setTimeout(() => {
+        setTooltipTaskId(null);
+      }, 3000);
+      
+      return; // Don't allow manual completion
+    }
+    
+    // Prevent manually marking referral tasks as complete
+    if (completed && !fromArticle && taskArticle.isReferral) {
+      console.log(`Referral task ${taskId} can only be completed by submitting the form`);
+      
+      setTooltipTaskId(taskId);
+      setTimeout(() => {
+        setTooltipTaskId(null);
+      }, 3000);
+      
+      return; // Don't allow manual completion
+    }
+    
     // Prevent marking quiz task as complete manually if not all questions are answered
     if (completed && !fromArticle && taskArticle.isQuiz) {
       if (!areAllQuestionsAnswered(taskArticle)) {
@@ -612,13 +648,14 @@ function TasksContent() {
         externalUrl: 'https://kolayik.com',
         handleKolayButtonClick: () => {
           window.open('https://kolayik.com', '_blank');
-          if (window.markTaskAsComplete) {
-            console.log('Marking task1 as complete from Kolay button click');
-            window.markTaskAsComplete('task1');
-          }
-          if (window.clickKolayButton) {
-            window.clickKolayButton();
-          }
+          // No longer auto-complete the task
+          // if (window.markTaskAsComplete) {
+          //   console.log('Marking task1 as complete from Kolay button click');
+          //   window.markTaskAsComplete('task1');
+          // }
+          // if (window.clickKolayButton) {
+          //   window.clickKolayButton();
+          // }
         },
         sections: [
           {
@@ -987,11 +1024,11 @@ function TasksContent() {
             console.log('markVideoAsComplete called from window');
             setMarkCompleteDisabled(false);
             
-            // Auto-complete the task
-            if (activeTask && !activeTask.completed) {
-              console.log('Auto-completing video task from direct call:', activeTask.id);
-              handleToggleTask(activeTask.id, true, true);
-            }
+            // Don't auto-complete the task
+            // if (activeTask && !activeTask.completed) {
+            //   console.log('Auto-completing video task from direct call:', activeTask.id);
+            //   handleToggleTask(activeTask.id, true, true);
+            // }
           };
           
           // If we have a source string, try to update it to add our event

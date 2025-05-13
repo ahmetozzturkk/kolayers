@@ -20,12 +20,7 @@ export default function ReferralForm({ taskId, description, onFormSubmit }: Refe
     // Call the parent callback to enable Mark as Complete
     onFormSubmit();
     
-    // Manually trigger task completion after delay
-    setTimeout(() => {
-      if (typeof window.markTaskAsComplete === 'function') {
-        window.markTaskAsComplete(taskId);
-      }
-    }, 1500);
+    // No longer auto-completing the task
   };
   
   return (

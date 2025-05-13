@@ -134,12 +134,7 @@ export function initializeTaskContent() {
                         // Call the React function to enable Mark as Complete button
                         window.handleReferralSubmit();
                         
-                        // Manually trigger task completion after delay
-                        setTimeout(() => {
-                          if (typeof window.markTaskAsComplete === 'function') {
-                            window.markTaskAsComplete('${task.id}');
-                          }
-                        }, 1500);
+                        // No longer auto-complete the task
                       } else {
                         form.reportValidity();
                       }
