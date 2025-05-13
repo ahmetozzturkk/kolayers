@@ -3,10 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET a specific module
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const userId = await verifyAuth(request);
     
@@ -17,7 +14,10 @@ export async function GET(
       );
     }
     
-    const moduleId = params.id;
+    // Extract ID from URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const moduleId = pathParts[pathParts.length - 1];
     
     // Get the module with its tasks and badge
     const moduleData = await prisma.module.findUnique({
@@ -93,10 +93,7 @@ export async function GET(
 }
 
 // UPDATE a module (admin only)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
     const userId = await verifyAuth(request);
     
@@ -120,7 +117,11 @@ export async function PUT(
       );
     }
     
-    const moduleId = params.id;
+    // Extract ID from URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const moduleId = pathParts[pathParts.length - 1];
+    
     const body = await request.json();
     
     // Validate the module exists
@@ -165,10 +166,7 @@ export async function PUT(
 }
 
 // DELETE a module (admin only)
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
     const userId = await verifyAuth(request);
     
@@ -192,7 +190,10 @@ export async function DELETE(
       );
     }
     
-    const moduleId = params.id;
+    // Extract ID from URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const moduleId = pathParts[pathParts.length - 1];
     
     // Validate the module exists
     const existingModule = await prisma.module.findUnique({

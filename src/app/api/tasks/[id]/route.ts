@@ -3,10 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET a specific task
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const userId = await verifyAuth(request);
     
@@ -17,7 +14,10 @@ export async function GET(
       );
     }
     
-    const taskId = params.id;
+    // Extract ID from URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const taskId = pathParts[pathParts.length - 1];
     
     // Get the task
     const task = await prisma.task.findUnique({
@@ -69,10 +69,7 @@ export async function GET(
 }
 
 // UPDATE a task (admin only)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
     const userId = await verifyAuth(request);
     
@@ -96,7 +93,11 @@ export async function PUT(
       );
     }
     
-    const taskId = params.id;
+    // Extract ID from URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const taskId = pathParts[pathParts.length - 1];
+    
     const body = await request.json();
     
     // Validate the task exists
@@ -159,10 +160,7 @@ export async function PUT(
 }
 
 // DELETE a task (admin only)
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
     const userId = await verifyAuth(request);
     
@@ -186,7 +184,10 @@ export async function DELETE(
       );
     }
     
-    const taskId = params.id;
+    // Extract ID from URL path
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const taskId = pathParts[pathParts.length - 1];
     
     // Validate the task exists
     const existingTask = await prisma.task.findUnique({
