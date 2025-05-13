@@ -381,6 +381,8 @@ export const mockDataHelpers = {
       // Make sure content exists
       if (!task.content) {
         task.content = {
+          title: task.title || "Task Content",
+          taskType: task.taskType || "regular",
           sections: []
         };
       }
