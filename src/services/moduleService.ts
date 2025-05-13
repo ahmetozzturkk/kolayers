@@ -1,4 +1,4 @@
-import { Module } from '@/types';
+import { Module } from '@/src/types';
 
 // Get all modules
 export async function getAllModules(): Promise<{ modules: Module[] } | { error: string }> {

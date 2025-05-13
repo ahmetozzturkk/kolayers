@@ -1,4 +1,4 @@
-import { Badge } from '@/types';
+import { Badge } from '@/src/types';
 
 // Get all badges
 export async function getAllBadges(): Promise<{ badges: Badge[] } | { error: string }> {
