@@ -5,8 +5,8 @@ import { Badge, Module, Task } from '../types';
 import CreationGuidanceTip from './CreationGuidanceTip';
 
 interface CreationFlowWizardProps {
-  onSaveBadge: (badge: Partial<Badge>) => void;
-  onSaveModule: (module: Partial<Module>) => void;
+  onSaveBadge: (badge: Partial<Badge>) => Partial<Badge> | undefined;
+  onSaveModule: (module: Partial<Module>) => Partial<Module> | undefined;
   onSaveTask: (task: Partial<Task>) => void;
   onClose: () => void;
   badges: Badge[];
@@ -67,7 +67,7 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
   // Handle badge save and creation
   const handleSaveBadge = () => {
     const savedBadge = onSaveBadge(badge);
-    if (savedBadge && 'id' in savedBadge) {
+    if (savedBadge && typeof savedBadge === 'object' && 'id' in savedBadge) {
       setCreatedBadgeId(savedBadge.id as string);
       // Update module form with the newly created badge
       setModule(prev => ({
@@ -81,7 +81,7 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
   // Handle module save and creation
   const handleSaveModule = () => {
     const savedModule = onSaveModule(module);
-    if (savedModule && 'id' in savedModule) {
+    if (savedModule && typeof savedModule === 'object' && 'id' in savedModule) {
       setCreatedModuleId(savedModule.id as string);
       // Update task form with the newly created module
       setTask(prev => ({
