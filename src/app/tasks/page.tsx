@@ -2191,16 +2191,6 @@ function TasksContent() {
                               allowFullScreen
                             ></iframe>
                             <p className="text-center text-gray-500 text-sm mt-2">Watch the complete video to mark this task as complete</p>
-                            <button 
-                              className="mt-4 w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow-sm transition-colors" 
-                              onClick={() => {
-                                if (window.markVideoAsComplete) {
-                                  window.markVideoAsComplete();
-                                }
-                              }}
-                            >
-                              Mark as complete
-                            </button>
                             <script dangerouslySetInnerHTML={{ __html: `
                               // Monitor video playback to detect completion
                               var videoMonitorInterval = setInterval(function() {
