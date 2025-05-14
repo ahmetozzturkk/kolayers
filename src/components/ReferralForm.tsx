@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface ReferralFormProps {
   taskId: string;
@@ -16,12 +16,43 @@ interface ReferralFormData {
   message: string;
   taskId: string;
   createdAt: string;
+  referrerId?: string;
+  referrerName?: string;
+  referrerEmail?: string;
 }
 
 export default function ReferralForm({ taskId, description, onFormSubmit }: ReferralFormProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<{id: string, name: string, email: string} | null>(null);
+  
+  // Fetch current user on component mount
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        // Try to get user from localStorage first (for demo purposes)
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+          setCurrentUser(JSON.parse(storedUser));
+          return;
+        }
+        
+        // Alternatively, fetch from API
+        const response = await fetch('/api/auth/user');
+        if (response.ok) {
+          const userData = await response.json();
+          setCurrentUser(userData);
+          // Cache user data in localStorage for demo
+          localStorage.setItem('currentUser', JSON.stringify(userData));
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    
+    fetchCurrentUser();
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,7 +69,10 @@ export default function ReferralForm({ taskId, description, onFormSubmit }: Refe
         department: (form.elements.namedItem('department') as HTMLSelectElement).value,
         message: (form.elements.namedItem('message') as HTMLTextAreaElement).value,
         taskId: taskId,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        referrerId: currentUser?.id || undefined,
+        referrerName: currentUser?.name || undefined,
+        referrerEmail: currentUser?.email || undefined
       };
       
       // Save to localStorage

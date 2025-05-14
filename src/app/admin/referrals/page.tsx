@@ -12,6 +12,9 @@ interface Referral {
   message: string;
   taskId: string;
   createdAt: string;
+  referrerId?: string;
+  referrerName?: string;
+  referrerEmail?: string;
 }
 
 export default function ReferralsPage() {
@@ -40,7 +43,17 @@ export default function ReferralsPage() {
     if (referrals.length === 0) return;
     
     // Create CSV header
-    const headers = ['First Name', 'Last Name', 'Email', 'Department', 'Message', 'Task ID', 'Created At'];
+    const headers = [
+      'First Name', 
+      'Last Name', 
+      'Email', 
+      'Department', 
+      'Message', 
+      'Task ID', 
+      'Created At',
+      'Referrer Name',
+      'Referrer Email'
+    ];
     
     // Create CSV content
     const csvContent = [
@@ -52,7 +65,9 @@ export default function ReferralsPage() {
         `"${referral.department}"`,
         `"${referral.message?.replace(/"/g, '""') || ''}"`,
         `"${referral.taskId}"`,
-        `"${new Date(referral.createdAt).toLocaleString()}"`
+        `"${new Date(referral.createdAt).toLocaleString()}"`,
+        `"${referral.referrerName || 'N/A'}"`,
+        `"${referral.referrerEmail || 'N/A'}"`
       ].join(','))
     ].join('\n');
     
@@ -139,6 +154,7 @@ export default function ReferralsPage() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referrer</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     </tr>
@@ -157,6 +173,16 @@ export default function ReferralsPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 max-w-xs truncate">{referral.message || '-'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {referral.referrerName ? (
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{referral.referrerName}</div>
+                              <div className="text-xs text-gray-500">{referral.referrerEmail}</div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">N/A</div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{referral.taskId}</div>
