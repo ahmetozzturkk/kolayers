@@ -1,26 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+
+interface ReferralFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  department: string;
+  message?: string;
+  taskId: string;
+}
 
 // Create a new referral
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const userId = await verifyAuth(request);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const body: ReferralFormData = await request.json();
+    const { firstName, lastName, email, department, message, taskId } = body;
 
-    const body = await request.json();
-    const { email } = body;
-
-    if (!email) {
+    // Basic validation
+    if (!firstName || !lastName || !email || !department || !taskId) {
       return NextResponse.json(
-        { error: 'Email is required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
@@ -34,55 +33,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if the user is referring themselves
-    const currentUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true }
-    });
-    
-    if (currentUser && currentUser.email === email) {
-      return NextResponse.json(
-        { error: 'You cannot refer yourself' },
-        { status: 400 }
-      );
+    // Save the referral data to the database
+    try {
+      const referral = await prisma.referral.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          department,
+          message: message || '',
+          taskId,
+          status: 'pending',
+        }
+      });
+
+      return NextResponse.json(referral, { status: 201 });
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error('Failed to store referral data in database');
     }
-
-    // Check if the email is already registered
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
-    
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'This email is already registered in the system' },
-        { status: 400 }
-      );
-    }
-
-    // Check if the email has already been referred
-    const existingReferral = await prisma.referral.findFirst({
-      where: { referredEmail: email }
-    });
-    
-    if (existingReferral) {
-      return NextResponse.json(
-        { error: 'This email has already been referred' },
-        { status: 400 }
-      );
-    }
-
-    // Create the referral
-    const referral = await prisma.referral.create({
-      data: {
-        referrerId: userId,
-        referredEmail: email,
-        status: 'pending'
-      }
-    });
-
-    // TODO: Send email to the referred person (in a real implementation)
-
-    return NextResponse.json(referral, { status: 201 });
   } catch (error) {
     console.error('Error creating referral:', error);
     return NextResponse.json(
@@ -92,27 +61,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET user's referrals
+// Retrieve referrals
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const userId = await verifyAuth(request);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Get referrals made by the user
     const referrals = await prisma.referral.findMany({
-      where: { referrerId: userId },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     });
-
+    
     return NextResponse.json(referrals);
   } catch (error) {
     console.error('Error fetching referrals:', error);

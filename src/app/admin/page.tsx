@@ -5,6 +5,7 @@ import { badges, modules, certificates, rewards, tasks, mockDataHelpers } from '
 import { Badge, Module, Certificate, Reward, Task, TaskContent } from '../../types';
 import CreationWizard, { WizardItemType } from '../../components/CreationWizard';
 import CreationFlowWizard from '../../components/CreationFlowWizard';
+import Link from 'next/link';
 
 // Quiz question type
 interface QuizQuestion {
@@ -1147,11 +1148,11 @@ export default function AdminPage() {
       </div>
 
       {/* Admin Help Card */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border border-blue-100 mb-8 shadow-sm">
+      <div className="admin-help-card bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border border-blue-100 mb-8 shadow-sm">
         <h2 className="text-lg font-semibold text-indigo-800 mb-2">Creating Content Made Easy</h2>
         <p className="text-gray-700 mb-3">Welcome to the admin dashboard! Here you can create and manage all the content for your learning platform.</p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg p-4 shadow-sm border border-indigo-100">
             <h3 className="font-medium text-indigo-700 mb-2 flex items-center">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1170,6 +1171,16 @@ export default function AdminPage() {
               Complete Learning Path
             </h3>
             <p className="text-sm text-gray-600">Create a full learning path in one go - badge, module, and task all connected. Perfect for building structured learning experiences.</p>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-orange-100">
+            <h3 className="font-medium text-orange-700 mb-2 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <Link href="/admin/referrals" className="hover:underline">View Referrals</Link>
+            </h3>
+            <p className="text-sm text-gray-600">View and manage all form submissions from referral tasks. Export data to CSV or clear all entries.</p>
           </div>
         </div>
       </div>

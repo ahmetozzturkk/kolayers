@@ -158,10 +158,15 @@ model UserProgress {
 
 model Referral {
   id            String    @id @default(cuid())
-  referrerId    String
-  referredEmail String
+  referrerId    String?
+  firstName     String
+  lastName      String
+  email         String
+  department    String
+  message       String?
+  taskId        String
   status        String    @default("pending") // pending, accepted, declined
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  referrer      User      @relation("ReferredBy", fields: [referrerId], references: [id])
+  referrer      User?     @relation("ReferredBy", fields: [referrerId], references: [id])
 } 

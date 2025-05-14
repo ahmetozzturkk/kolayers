@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Badge } from '@/src/types';
 
 export async function GET(request: NextRequest) {
   try {

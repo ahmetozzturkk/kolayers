@@ -8,19 +8,69 @@ interface ReferralFormProps {
   onFormSubmit: () => void;
 }
 
+interface ReferralFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  department: string;
+  message: string;
+  taskId: string;
+  createdAt: string;
+}
+
 export default function ReferralForm({ taskId, description, onFormSubmit }: ReferralFormProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
     
-    // Show success message
-    setIsSubmitted(true);
-    
-    // Call the parent callback to enable Mark as Complete
-    onFormSubmit();
-    
-    // No longer auto-completing the task
+    try {
+      // Get form data
+      const form = e.currentTarget;
+      const formData: ReferralFormData = {
+        firstName: (form.elements.namedItem('first-name') as HTMLInputElement).value,
+        lastName: (form.elements.namedItem('last-name') as HTMLInputElement).value,
+        email: (form.elements.namedItem('email') as HTMLInputElement).value,
+        department: (form.elements.namedItem('department') as HTMLSelectElement).value,
+        message: (form.elements.namedItem('message') as HTMLTextAreaElement).value,
+        taskId: taskId,
+        createdAt: new Date().toISOString()
+      };
+      
+      // Save to localStorage
+      try {
+        // Get existing referrals or initialize empty array
+        const existingReferrals = JSON.parse(localStorage.getItem('referrals') || '[]');
+        
+        // Add new referral
+        existingReferrals.push({
+          id: Date.now().toString(), // Simple unique ID
+          ...formData
+        });
+        
+        // Save back to localStorage
+        localStorage.setItem('referrals', JSON.stringify(existingReferrals));
+        console.log('Referral saved to localStorage:', formData);
+        
+        // Show success message
+        setIsSubmitted(true);
+        
+        // Call the parent callback to enable Mark as Complete
+        onFormSubmit();
+      } catch (storageError) {
+        console.error('Error saving to localStorage:', storageError);
+        throw new Error('Failed to save referral data');
+      }
+    } catch (err) {
+      console.error('Error submitting referral form:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while submitting the form');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -35,27 +85,43 @@ export default function ReferralForm({ taskId, description, onFormSubmit }: Refe
         <p className="text-gray-600 mt-2">{description || 'Help your colleagues improve their skills'}</p>
       </div>
       
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <p className="text-xs text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {!isSubmitted ? (
         <form id={`referral-form-${taskId}`} className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="relative">
               <label htmlFor="first-name" className="block text-sm font-medium text-gray-700 mb-1">First name <span className="text-red-500">*</span></label>
-              <input type="text" id="first-name" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm" />
+              <input type="text" id="first-name" name="first-name" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm" />
             </div>
             <div className="relative">
               <label htmlFor="last-name" className="block text-sm font-medium text-gray-700 mb-1">Last name <span className="text-red-500">*</span></label>
-              <input type="text" id="last-name" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm" />
+              <input type="text" id="last-name" name="last-name" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm" />
             </div>
           </div>
           
           <div className="relative">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Work email <span className="text-red-500">*</span></label>
-            <input type="email" id="email" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm" />
+            <input type="email" id="email" name="email" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm" />
           </div>
           
           <div className="relative">
             <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">Department <span className="text-red-500">*</span></label>
-            <select id="department" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm appearance-none pr-8 text-sm">
+            <select id="department" name="department" required className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm appearance-none pr-8 text-sm">
               <option value="">Select department</option>
               <option value="Human Resources">Human Resources</option>
               <option value="Finance">Finance</option>
@@ -75,18 +141,31 @@ export default function ReferralForm({ taskId, description, onFormSubmit }: Refe
           
           <div className="relative">
             <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Personal message (optional)</label>
-            <textarea id="message" rows={2} className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm"></textarea>
+            <textarea id="message" name="message" rows={2} className="w-full px-3 py-2 rounded-md border border-gray-300 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all duration-200 text-gray-700 bg-white shadow-sm text-sm"></textarea>
           </div>
           
           <div className="pt-2">
             <button 
               type="submit" 
-              className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+              disabled={isLoading}
+              className={`w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${isLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
-              </svg>
-              Send Invitation
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                  </svg>
+                  Send Invitation
+                </>
+              )}
             </button>
             <p className="text-xs text-gray-500 text-center mt-2">Invite colleagues to earn rewards</p>
           </div>
