@@ -2199,7 +2199,7 @@ function TasksContent() {
                                 }
                               }}
                             >
-                              I've watched the video - Mark as complete
+                              Mark as complete
                             </button>
                             <script dangerouslySetInnerHTML={{ __html: `
                               // Monitor video playback to detect completion
