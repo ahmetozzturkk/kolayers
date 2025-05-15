@@ -71,6 +71,8 @@ model Badge {
   earnedBy           EarnedBadge[]
   certificates       CertificateBadgeRequirement[]
   rewardsBadgeRequirement Reward[] @relation("BadgeRequirement")
+  conceptId          String?   // ID of the associated concept
+  concept            Concept?  @relation(fields: [conceptId], references: [id])
 }
 
 model Certificate {
@@ -169,4 +171,12 @@ model Referral {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   referrer      User?     @relation("ReferredBy", fields: [referrerId], references: [id])
+}
+
+model Concept {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  badges      Badge[]
 } 

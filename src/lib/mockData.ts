@@ -333,13 +333,23 @@ export const mockDataHelpers = {
       if (!badge.id) {
         badge.id = `badge${badges.length + 1}`;
       }
-      badges.push(badge);
-      return badge;
+      // Ensure concept field is preserved
+      const newBadge = { 
+        ...badge,
+        concept: badge.concept // Explicitly include concept field
+      };
+      badges.push(newBadge);
+      return newBadge;
     } else {
       // Update existing badge
       const index = badges.findIndex(b => b.id === badge.id);
       if (index !== -1) {
-        badges[index] = { ...badges[index], ...badge };
+        // Preserve the concept field
+        badges[index] = { 
+          ...badges[index], 
+          ...badge,
+          concept: badge.concept // Explicitly include concept field
+        };
         return badges[index];
       }
       return badge;

@@ -68,6 +68,12 @@ export interface Badge {
   requiredToComplete: string[]; // Module IDs required to complete
   backgroundColor?: string; // Background color for the badge
   icon?: string; // Emoji icon for the badge
+  concept?: string; // Concept associated with this badge
+}
+
+export interface Concept {
+  id: string;
+  name: string;
 }
 
 export interface Certificate {

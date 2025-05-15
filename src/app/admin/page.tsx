@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { badges, modules, certificates, rewards, tasks, mockDataHelpers } from '../../lib/mockData';
-import { Badge, Module, Certificate, Reward, Task, TaskContent } from '../../types';
+import { Badge, Module, Certificate, Reward, Task, TaskContent, Concept } from '../../types';
 import CreationWizard, { WizardItemType } from '../../components/CreationWizard';
 import CreationFlowWizard from '../../components/CreationFlowWizard';
 import Link from 'next/link';
@@ -41,84 +41,42 @@ export default function AdminPage() {
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
+  // State for data collections
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [concepts, setConcepts] = useState<Concept[]>([]);
+
   // Load saved badges from localStorage when component mounts
   useEffect(() => {
+    // Load saved badges from localStorage
     if (typeof window !== 'undefined') {
-      try {
-        // Load badges
-        const savedBadges = localStorage.getItem('customBadges');
-        if (savedBadges) {
-          const parsedBadges = JSON.parse(savedBadges);
-          
-          // Update the badges array with the saved data
-          badges.length = 0; // Clear the array
-          badges.push(...parsedBadges); // Add all saved badges
-          
-          console.log('Loaded custom badges from localStorage:', parsedBadges);
-          
-          // Initialize filtered badges with loaded badges
-          setFilteredBadges(parsedBadges);
-        } else {
-          // If no saved badges, initialize with default badges
-          setFilteredBadges(badges);
-        }
-        
-        // Load modules
-        const savedModules = localStorage.getItem('customModules');
-        if (savedModules) {
-          const parsedModules = JSON.parse(savedModules);
-          
-          modules.length = 0;
-          modules.push(...parsedModules);
-          
-          console.log('Loaded custom modules from localStorage:', parsedModules);
-        }
-        
-        // Load certificates
-        const savedCertificates = localStorage.getItem('customCertificates');
-        if (savedCertificates) {
-          const parsedCertificates = JSON.parse(savedCertificates);
-          
-          certificates.length = 0;
-          certificates.push(...parsedCertificates);
-          
-          console.log('Loaded custom certificates from localStorage:', parsedCertificates);
-        }
-        
-        // Load rewards
-        const savedRewards = localStorage.getItem('customRewards');
-        if (savedRewards) {
-          const parsedRewards = JSON.parse(savedRewards);
-          
-          rewards.length = 0;
-          rewards.push(...parsedRewards);
-          
-          console.log('Loaded custom rewards from localStorage:', parsedRewards);
-        }
-        
-        // Load tasks
-        const savedTasks = localStorage.getItem('customTasks');
-        if (savedTasks) {
-          const parsedTasks = JSON.parse(savedTasks);
-          
-          tasks.length = 0;
-          tasks.push(...parsedTasks);
-          
-          console.log('Loaded custom tasks from localStorage:', parsedTasks);
-        }
-      } catch (e) {
-        console.error('Error loading data from localStorage:', e);
-        // Initialize with default badges in case of error
-        setFilteredBadges(badges);
-      }
-    } else {
+      const storedBadges = JSON.parse(localStorage.getItem('customBadges') || '[]');
+      const storedModules = JSON.parse(localStorage.getItem('customModules') || '[]');
+      const storedCertificates = JSON.parse(localStorage.getItem('customCertificates') || '[]');
+      const storedRewards = JSON.parse(localStorage.getItem('customRewards') || '[]');
+      const storedTasks = JSON.parse(localStorage.getItem('customTasks') || '[]');
+      const storedConcepts = JSON.parse(localStorage.getItem('concepts') || '[]');
+      
+      setBadges(storedBadges.length > 0 ? storedBadges : badges);
+      setModules(storedModules.length > 0 ? storedModules : modules);
+      setCertificates(storedCertificates.length > 0 ? storedCertificates : certificates);
+      setRewards(storedRewards.length > 0 ? storedRewards : rewards);
+      setTasks(storedTasks.length > 0 ? storedTasks : tasks);
+      setConcepts(storedConcepts);
+      
       // Initialize with default badges if not in browser
       setFilteredBadges(badges);
     }
   }, []);
 
   // State for new or edited items
-  const [badgeForm, setBadgeForm] = useState<Partial<Badge>>({
+  const [badgeForm, setBadgeForm] = useState<Partial<Badge> & { 
+    conceptId?: string,
+    newConcept?: string
+  }>({
     title: '',
     description: '',
     imageUrl: '',
@@ -126,7 +84,9 @@ export default function AdminPage() {
     points: 0,
     requiredToComplete: [],
     backgroundColor: '#7c3aed', // Default color (indigo/lavender)
-    icon: '📅' // Default icon
+    icon: '📅', // Default icon
+    conceptId: '',
+    newConcept: ''
   });
 
   const [moduleForm, setModuleForm] = useState<Partial<Module>>({
@@ -246,7 +206,9 @@ export default function AdminPage() {
           points: 0,
           requiredToComplete: [],
           backgroundColor: '#7c3aed', // Default color (indigo/lavender)
-          icon: '📅' // Default icon
+          icon: '📅', // Default icon
+          conceptId: '',
+          newConcept: ''
         });
         setShowBadgeModal(true);
         break;
@@ -314,7 +276,10 @@ export default function AdminPage() {
         const badge = badges.find(b => b.id === id);
         if (badge) {
           setSelectedBadge(badge);
-          setBadgeForm({ ...badge });
+          setBadgeForm({ 
+            ...badge,
+            conceptId: badge.concept || '' 
+          });
           setShowBadgeModal(true);
         }
         break;
@@ -583,13 +548,54 @@ export default function AdminPage() {
     }
 
     try {
+      // Handle concept creation if a new concept was entered
+      let conceptId = badgeForm.conceptId;
+      
+      if (badgeForm.newConcept && badgeForm.newConcept.trim() !== '') {
+        // Check if concept already exists with the same name
+        const existingConcept = concepts.find(c => 
+          c.name.toLowerCase() === badgeForm.newConcept?.toLowerCase()
+        );
+        
+        if (existingConcept) {
+          conceptId = existingConcept.id;
+        } else {
+          // Create a new concept
+          const newConcept: Concept = {
+            id: `concept${Date.now()}`,
+            name: badgeForm.newConcept.trim()
+          };
+          
+          const updatedConcepts = [...concepts, newConcept];
+          setConcepts(updatedConcepts);
+          
+          // Save concepts to localStorage
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('concepts', JSON.stringify(updatedConcepts));
+            } catch (e) {
+              console.error('Error saving concepts to localStorage:', e);
+            }
+          }
+          
+          conceptId = newConcept.id;
+        }
+      }
+      
       // Use the mockDataHelpers to save the badge
       const isNew = !selectedBadge;
       const savedBadge = mockDataHelpers.saveBadge({
         ...badgeForm as Badge,
         id: selectedBadge?.id || '',
-        modules: selectedBadge?.modules || []
+        modules: selectedBadge?.modules || [],
+        concept: conceptId || undefined
       }, isNew);
+      
+      // Update the badge in the badges array to ensure it has the concept field
+      const badgeIndex = badges.findIndex(b => b.id === savedBadge.id);
+      if (badgeIndex !== -1) {
+        badges[badgeIndex].concept = conceptId || undefined;
+      }
 
       // Also save badges to localStorage for persistence
       if (typeof window !== 'undefined') {
@@ -1118,6 +1124,49 @@ export default function AdminPage() {
   // New function to handle creation wizard selection
   const handleCreateFromWizard = (type: WizardItemType) => {
     handleCreate(type);
+  };
+
+  // Add concept management functions
+  const addConcept = (name: string) => {
+    if (!name || name.trim() === '') return;
+    
+    const newConcept: Concept = {
+      id: `concept${Date.now()}`,
+      name: name.trim()
+    };
+    
+    const updatedConcepts = [...concepts, newConcept];
+    setConcepts(updatedConcepts);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('concepts', JSON.stringify(updatedConcepts));
+    }
+    
+    return newConcept;
+  };
+  
+  const removeConcept = (id: string) => {
+    const updatedConcepts = concepts.filter(c => c.id !== id);
+    setConcepts(updatedConcepts);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('concepts', JSON.stringify(updatedConcepts));
+    }
+    
+    // Also remove from any badges using this concept
+    const updatedBadges = badges.map(badge => {
+      if (badge.concept === id) {
+        return { ...badge, concept: undefined };
+      }
+      return badge;
+    });
+    setBadges(updatedBadges);
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('customBadges', JSON.stringify(updatedBadges));
+    }
   };
 
   return (
@@ -1725,8 +1774,8 @@ export default function AdminPage() {
       {/* Badge Modal */}
       {showBadgeModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white p-5 rounded-lg shadow-lg w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-3">
+          <div className="bg-white p-5 rounded-lg shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-3 sticky top-0 bg-white py-2 border-b">
               {selectedBadge ? 'Edit Badge' : 'Create New Badge'}
             </h3>
             
@@ -1764,6 +1813,48 @@ export default function AdminPage() {
                   className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
                   rows={2}
                 ></textarea>
+              </div>
+              
+              {/* Concept Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Concept</label>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="col-span-3">
+                    <select
+                      value={badgeForm.conceptId || ''}
+                      onChange={(e) => setBadgeForm({...badgeForm, conceptId: e.target.value, newConcept: ''})}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="">-- Select Concept --</option>
+                      {concepts.map(concept => (
+                        <option key={concept.id} value={concept.id}>{concept.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => setBadgeForm({...badgeForm, conceptId: '', newConcept: ''})}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs text-gray-500 mb-1">Or add a new concept:</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="col-span-3">
+                      <input
+                        type="text"
+                        value={badgeForm.newConcept || ''}
+                        onChange={(e) => setBadgeForm({...badgeForm, newConcept: e.target.value, conceptId: ''})}
+                        placeholder="Enter new concept name"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               
               {/* Badge Appearance - Color and Icon */}
@@ -2882,7 +2973,53 @@ export default function AdminPage() {
         <CreationFlowWizard
           onSaveBadge={(badgeData) => {
             const isNew = !badgeData.id;
-            const newBadge = mockDataHelpers.saveBadge(badgeData as Badge, isNew);
+            
+            // Handle new concept creation if needed
+            let conceptId = badgeData.conceptId;
+            
+            if (badgeData.newConcept && badgeData.newConcept.trim() !== '') {
+              // Check if the concept already exists
+              const existingConcept = concepts.find(c => 
+                c.name.toLowerCase() === badgeData.newConcept?.toLowerCase()
+              );
+              
+              if (existingConcept) {
+                conceptId = existingConcept.id;
+              } else {
+                // Create a new concept
+                const newConcept: Concept = {
+                  id: `concept${Date.now()}`,
+                  name: badgeData.newConcept.trim()
+                };
+                
+                const updatedConcepts = [...concepts, newConcept];
+                setConcepts(updatedConcepts);
+                
+                // Save concepts to localStorage
+                if (typeof window !== 'undefined') {
+                  try {
+                    localStorage.setItem('concepts', JSON.stringify(updatedConcepts));
+                  } catch (e) {
+                    console.error('Error saving concepts to localStorage:', e);
+                  }
+                }
+                
+                conceptId = newConcept.id;
+              }
+            }
+            
+            const badgeToSave: Badge = {
+              ...badgeData as Badge,
+              concept: conceptId
+            };
+            
+            const newBadge = mockDataHelpers.saveBadge(badgeToSave, isNew);
+            
+            // Update the badge in the badges array to ensure it has the concept field
+            const badgeIndex = badges.findIndex(b => b.id === newBadge.id);
+            if (badgeIndex !== -1) {
+              badges[badgeIndex].concept = conceptId || undefined;
+            }
             
             // Save to localStorage
             if (typeof window !== 'undefined') {
@@ -2931,6 +3068,7 @@ export default function AdminPage() {
           onClose={() => setShowFlowWizard(false)}
           badges={badges}
           modules={modules}
+          concepts={concepts}
         />
       )}
     </main>

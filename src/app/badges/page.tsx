@@ -24,6 +24,10 @@ export default function BadgesPage() {
   // State to track started badges
   const [startedBadges, setStartedBadges] = useState({});
   
+  // State for concept filtering
+  const [selectedConcept, setSelectedConcept] = useState('');
+  const [allConcepts, setAllConcepts] = useState([]);
+  
   // Debug function to fix Onboarding Expert badge
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -182,6 +186,17 @@ export default function BadgesPage() {
             }
           });
         }
+        
+        // Load concepts
+        const storedConcepts = localStorage.getItem('concepts');
+        if (storedConcepts) {
+          const concepts = JSON.parse(storedConcepts);
+          console.log('Loaded concepts:', concepts);
+          
+          // Extract unique concepts from badges
+          const conceptsFromBadges = getUniqueConcepts(badges);
+          setAllConcepts(conceptsFromBadges);
+        }
       } catch (e) {
         console.error('Error loading badges from localStorage:', e);
       }
@@ -256,6 +271,17 @@ export default function BadgesPage() {
               badges.forEach(badge => {
                 badge.earned = earnedBadgeIds.includes(badge.id);
               });
+            }
+            
+            // Reload concepts
+            const storedConcepts = localStorage.getItem('concepts');
+            if (storedConcepts) {
+              const concepts = JSON.parse(storedConcepts);
+              console.log('Reloaded concepts on focus:', concepts);
+              
+              // Extract unique concepts from badges
+              const conceptsFromBadges = getUniqueConcepts(badges);
+              setAllConcepts(conceptsFromBadges);
             }
           }
         } catch (e) {
@@ -544,6 +570,40 @@ export default function BadgesPage() {
     return false;
   };
 
+  // Function to get unique concepts from badges
+  const getUniqueConcepts = (badgesList) => {
+    const conceptsSet = new Set();
+    
+    badgesList.forEach(badge => {
+      if (badge.concept) {
+        conceptsSet.add(badge.concept);
+      }
+    });
+    
+    return Array.from(conceptsSet);
+  };
+  
+  // Function to get concept name from ID
+  const getConceptName = (conceptId) => {
+    if (!conceptId) return '';
+    
+    // Get concept names from localStorage if available
+    if (typeof window !== 'undefined') {
+      try {
+        const storedConcepts = localStorage.getItem('concepts');
+        if (storedConcepts) {
+          const concepts = JSON.parse(storedConcepts);
+          const concept = concepts.find(c => c.id === conceptId);
+          if (concept) return concept.name;
+        }
+      } catch (e) {
+        console.error('Error getting concept name:', e);
+      }
+    }
+    
+    return conceptId; // Fallback to ID if name not found
+  };
+
   return (
     <div className="h-screen grid grid-cols-[240px_1fr] grid-rows-[80px_1fr]">
       {/* Top Left: Logo and Brand */}
@@ -640,8 +700,62 @@ export default function BadgesPage() {
       
       {/* Right: Content Area */}
       <div className="bg-gray-50 overflow-auto p-6">
+        {/* Modern concept filter */}
+        <div className="mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h2 className="text-xl font-bold text-indigo-800">Available Badges</h2>
+            
+            <div className="flex items-center">
+              <div className="relative">
+                <select
+                  id="concept-filter"
+                  value={selectedConcept}
+                  onChange={(e) => setSelectedConcept(e.target.value)}
+                  className="appearance-none pl-4 pr-10 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="">All Concepts</option>
+                  {allConcepts.map((conceptId) => (
+                    <option key={conceptId} value={conceptId}>
+                      {getConceptName(conceptId)}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                  <svg className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+              
+              {selectedConcept && (
+                <button 
+                  onClick={() => setSelectedConcept('')}
+                  className="ml-2 p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  aria-label="Clear filter"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Show active filter tag if a concept is selected */}
+          {selectedConcept && (
+            <div className="mt-3 flex items-center">
+              <span className="text-sm text-gray-500 mr-2">Filtering by:</span>
+              <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1 rounded-full flex items-center">
+                {getConceptName(selectedConcept)}
+              </span>
+            </div>
+          )}
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {badgeModules.map(badge => (
+          {badgeModules
+            .filter(badge => !selectedConcept || badge.concept === selectedConcept)
+            .map(badge => (
             <div key={badge.id} className="bg-white rounded-xl shadow-sm p-5 text-center transform transition-all duration-300 hover:-translate-y-1 hover:shadow-md group relative">
               {/* Locked/Status Label */}
               <div className="absolute top-2 right-2">
@@ -675,7 +789,7 @@ export default function BadgesPage() {
               <h3 className="text-lg font-bold mb-1">{badge.title}</h3>
               <p className="text-sm text-gray-600 mb-3">{badge.description}</p>
               
-              {/* Points */}
+              {/* Points only (removed concept display) */}
               <div className="flex justify-center mb-3">
                 <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-3 py-1 rounded-full">
                   {badge.points || 0} points
@@ -997,13 +1111,13 @@ export default function BadgesPage() {
               {/* Social Media Buttons */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 <button 
-                  className="flex items-center justify-center px-3 py-1.5 bg-[#1DA1F2] text-white rounded-md hover:bg-opacity-90 text-sm"
+                  className="flex items-center justify-center px-3 py-1.5 bg-black text-white rounded-md hover:bg-opacity-90 text-sm"
                   onClick={() => window.open(`https://twitter.com/intent/tweet?text=I've earned the ${shareModal.badge.title} badge on Kolayers! #learning #achievement`, '_blank')}
                 >
                   <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.029 10.029 0 01-3.127 1.195 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
-                  Twitter
+                  X
                 </button>
                 
                 <button 

@@ -1,16 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Badge, Module, Task } from '../types';
+import { Badge, Module, Task, Concept } from '../types';
 import CreationGuidanceTip from './CreationGuidanceTip';
 
+interface ExtendedBadge extends Partial<Badge> {
+  conceptId?: string;
+  newConcept?: string;
+}
+
 interface CreationFlowWizardProps {
-  onSaveBadge: (badge: Partial<Badge>) => Partial<Badge> | undefined;
+  onSaveBadge: (badge: ExtendedBadge) => Partial<Badge> | undefined;
   onSaveModule: (module: Partial<Module>) => Partial<Module> | undefined;
   onSaveTask: (task: Partial<Task>) => void;
   onClose: () => void;
   badges: Badge[];
   modules: Module[];
+  concepts?: Concept[];
 }
 
 const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
@@ -19,10 +25,11 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
   onSaveTask,
   onClose,
   badges,
-  modules
+  modules,
+  concepts = []
 }) => {
   const [step, setStep] = useState(1);
-  const [badge, setBadge] = useState<Partial<Badge>>({
+  const [badge, setBadge] = useState<ExtendedBadge>({
     title: '',
     description: '',
     imageUrl: '',
@@ -30,7 +37,9 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
     points: 0,
     requiredToComplete: [],
     backgroundColor: '#7c3aed',
-    icon: '📅'
+    icon: '📅',
+    conceptId: '',
+    newConcept: ''
   });
   
   const [module, setModule] = useState<Partial<Module>>({
@@ -66,7 +75,19 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
 
   // Handle badge save and creation
   const handleSaveBadge = () => {
-    const savedBadge = onSaveBadge(badge);
+    // Process concept if needed
+    let conceptToSave = badge.conceptId;
+    
+    if (badge.newConcept && badge.newConcept.trim() !== '') {
+      // Pass the concept through for creation (this would be handled by the parent)
+      conceptToSave = badge.newConcept.trim();
+    }
+    
+    const savedBadge = onSaveBadge({
+      ...badge,
+      concept: conceptToSave || undefined
+    });
+    
     if (savedBadge && typeof savedBadge === 'object' && 'id' in savedBadge) {
       setCreatedBadgeId(savedBadge.id as string);
       // Update module form with the newly created badge
@@ -210,6 +231,44 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
                 rows={3}
                 placeholder="Describe what this badge represents"
               ></textarea>
+            </div>
+            
+            {/* Concept Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Concept</label>
+              <div className="grid grid-cols-4 gap-2">
+                <div className="col-span-3">
+                  <select
+                    value={badge.conceptId || ''}
+                    onChange={(e) => setBadge({...badge, conceptId: e.target.value, newConcept: ''})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">-- Select Concept --</option>
+                    {concepts.map(concept => (
+                      <option key={concept.id} value={concept.id}>{concept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-1">
+                  <button
+                    type="button"
+                    onClick={() => setBadge({...badge, conceptId: '', newConcept: ''})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2">
+                <label className="block text-xs text-gray-500 mb-1">Or add a new concept:</label>
+                <input
+                  type="text"
+                  value={badge.newConcept || ''}
+                  onChange={(e) => setBadge({...badge, newConcept: e.target.value, conceptId: ''})}
+                  placeholder="Enter new concept name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
