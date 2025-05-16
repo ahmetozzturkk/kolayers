@@ -1,9 +1,22 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { tasks, badges, certificates, rewards } from '../../lib/mockData';
 import { getCurrentUser } from '../../lib/api';
+
+// Simple throttle function to prevent too many calls
+function throttle(func, delay) {
+  let lastCall = 0;
+  return function(...args) {
+    const now = new Date().getTime();
+    if (now - lastCall < delay) {
+      return;
+    }
+    lastCall = now;
+    return func(...args);
+  };
+}
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name?: string; image?: string } | null>(null);
@@ -96,7 +109,7 @@ export default function DashboardPage() {
     }
     
     // Set up an interval to refresh user data periodically
-    const refreshInterval = setInterval(loadUser, 30000); // Refresh every 30 seconds
+    const refreshInterval = setInterval(loadUser, 120000); // Reduced from 30sec to 120sec (2 mins)
     
     // Function to refresh task data
     const refreshTaskData = () => {
@@ -120,7 +133,7 @@ export default function DashboardPage() {
     };
     
     // Set up interval to refresh task data
-    const taskRefreshInterval = setInterval(refreshTaskData, 5000); // Refresh every 5 seconds
+    const taskRefreshInterval = setInterval(refreshTaskData, 20000); // Reduced from 5sec to 20sec
     
     return () => {
       clearInterval(refreshInterval); // Clean up interval on component unmount
@@ -130,10 +143,30 @@ export default function DashboardPage() {
 
   // Add an effect to refresh data when the component is focused
   useEffect(() => {
-    const handleFocus = () => {
+    // Throttled version of handleFocus to improve performance
+    const handleFocus = throttle(() => {
+      // Only reload data if the page has been inactive for at least 30 seconds
+      const lastActive = parseInt(localStorage.getItem('lastActive') || '0', 10);
+      const now = new Date().getTime();
+      if (now - lastActive < 30000) {
+        return; // Don't refresh if it's been less than 30 seconds
+      }
+      
+      // Set the last active timestamp
+      localStorage.setItem('lastActive', now.toString());
+      
       // Reload data when the window regains focus
       if (typeof window !== 'undefined') {
         try {
+          // Actually reload the user data
+          getCurrentUser().then(userData => {
+            if (userData) {
+              setUser(userData);
+            }
+          }).catch(error => {
+            console.error('Error fetching user data on focus:', error);
+          });
+          
           // Load custom tasks first to ensure we have the latest tasks
           const customTasks = localStorage.getItem('customTasks');
           if (customTasks) {
@@ -208,10 +241,13 @@ export default function DashboardPage() {
           console.error('Error loading data from localStorage on focus:', e);
         }
       }
-    };
+    }, 500); // Throttle to one call per 500ms
 
     // Add event listener for window focus
     window.addEventListener('focus', handleFocus);
+    
+    // Set initial lastActive timestamp
+    localStorage.setItem('lastActive', new Date().getTime().toString());
     
     // Clean up
     return () => {
@@ -419,12 +455,13 @@ export default function DashboardPage() {
       </div>
       
       {/* Left: Navigation Menu */}
-      <div className="bg-white border-r border-gray-200 py-6 flex flex-col">
-        <nav className="flex-1">
+      <div className="bg-white border-r border-gray-200 py-6 flex flex-col z-10">
+        <nav className="flex-1 relative z-20">
           <ul className="space-y-1 px-3">
             <li>
               <Link 
                 href="/dashboard" 
+                prefetch={true}
                 className="flex items-center px-4 py-2.5 text-sm rounded-lg bg-indigo-50 text-indigo-600 font-medium"
               >
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -436,6 +473,7 @@ export default function DashboardPage() {
             <li>
               <Link 
                 href="/badges" 
+                prefetch={true}
                 className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -447,6 +485,7 @@ export default function DashboardPage() {
             <li>
               <Link 
                 href="/tasks" 
+                prefetch={true}
                 className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -458,6 +497,7 @@ export default function DashboardPage() {
             <li>
               <Link 
                 href="/certificates" 
+                prefetch={true}
                 className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -469,6 +509,7 @@ export default function DashboardPage() {
             <li>
               <Link 
                 href="/rewards" 
+                prefetch={true}
                 className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -480,6 +521,7 @@ export default function DashboardPage() {
             <li>
               <Link 
                 href="/profile" 
+                prefetch={true}
                 className="flex items-center px-4 py-2.5 text-sm rounded-lg text-gray-600 hover:bg-gray-50 font-medium transition-colors"
               >
                 <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -493,7 +535,7 @@ export default function DashboardPage() {
       </div>
       
       {/* Right: Content Area */}
-      <div className="bg-gray-50 overflow-auto p-6">
+      <div className="bg-gray-50 overflow-auto p-6 relative z-0">
         {/* Welcome Section with Soft Square */}
         <div className="bg-white rounded-lg p-8 shadow-sm mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-center">
           <div>
@@ -502,7 +544,11 @@ export default function DashboardPage() {
             </h1>
             <p className="mt-2 text-gray-600">We've been expecting you. Let's pick up where you left off.</p>
           </div>
-          <div className="flex items-center">
+          <div 
+            className="flex items-center"
+            // Add pointer-events-none to the display-only elements to ensure they don't block clicks
+            style={{ pointerEvents: loading ? 'none' : 'auto' }}
+          >
             {getAvatarDisplay(selectedAvatar, 'md')}
             <div className="ml-4 text-right">
               <div className="text-sm text-gray-600 font-medium">Total Points</div>
