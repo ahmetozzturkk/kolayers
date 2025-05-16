@@ -90,7 +90,7 @@ export default function RegisterPage() {
       }
       
       // Registration successful, redirect to dashboard or login
-      router.push('/dashboard');
+      router.push('/login');
     } catch (err) {
       console.error('Registration error:', err);
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
