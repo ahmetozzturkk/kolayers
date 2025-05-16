@@ -6,7 +6,7 @@ import { tasks, badges, certificates, rewards } from '../../lib/mockData';
 import { getCurrentUser } from '../../lib/api';
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ name?: string; image?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<string[]>([]);
   const [claimedRewardIds, setClaimedRewardIds] = useState<string[]>([]);
@@ -298,13 +298,37 @@ export default function DashboardPage() {
     return totalPoints - spentPoints;
   }, [totalPoints, spentPoints]);
 
-  // Selected avatar (using a default for now, in a real app this would come from user settings)
-  const selectedAvatar = {
-    id: 1,
-    type: 'geometric',
-    design: 'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white',
-    icon: 'star'
-  };
+  // Avatar options - same as in profile page
+  const avatars = [
+    { id: 1, type: 'geometric', design: 'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white', icon: 'star' },
+    { id: 2, type: 'geometric', design: 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white', icon: 'bolt' },
+    { id: 3, type: 'geometric', design: 'bg-gradient-to-br from-amber-400 to-amber-600 text-white', icon: 'sun' },
+    { id: 4, type: 'geometric', design: 'bg-gradient-to-br from-rose-400 to-rose-600 text-white', icon: 'heart' },
+    { id: 5, type: 'geometric', design: 'bg-gradient-to-br from-sky-400 to-sky-600 text-white', icon: 'cloud' },
+    { id: 6, type: 'geometric', design: 'bg-gradient-to-br from-purple-400 to-purple-600 text-white', icon: 'moon' },
+    { id: 7, type: 'pattern', design: 'bg-indigo-600 bg-opacity-90 text-white', icon: 'code' },
+    { id: 8, type: 'pattern', design: 'bg-emerald-600 bg-opacity-90 text-white', icon: 'check' },
+    { id: 9, type: 'pattern', design: 'bg-amber-600 bg-opacity-90 text-white', icon: 'fire' }
+  ];
+
+  // Selected avatar (using image from user data)
+  const selectedAvatar = useMemo(() => {
+    // Get avatar ID from user.image if available
+    let avatarId = 1; // Default avatar ID
+    
+    if (user && user.image) {
+      const parsedId = parseInt(user.image);
+      if (!isNaN(parsedId) && parsedId > 0) {
+        avatarId = parsedId;
+      }
+    }
+    
+    // Find the avatar that matches the ID
+    const foundAvatar = avatars.find(avatar => avatar.id === avatarId);
+    
+    // Return found avatar or default to first avatar
+    return foundAvatar || avatars[0];
+  }, [user]);
 
   // Get avatar display component
   const getAvatarDisplay = (avatar, size = 'md') => {
@@ -314,16 +338,59 @@ export default function DashboardPage() {
       lg: 'w-20 h-20 text-2xl'
     };
     
-    // Icon for the avatar
-    const avatarIcon = (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-      </svg>
-    );
+    // Icon mappings for different avatar types
+    const icons = {
+      star: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+        </svg>
+      ),
+      bolt: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+      sun: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ),
+      heart: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      ),
+      cloud: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+        </svg>
+      ),
+      moon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      ),
+      code: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+        </svg>
+      ),
+      check: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      ),
+      fire: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+        </svg>
+      )
+    };
     
     return (
       <div className={`${sizeClasses[size]} rounded-full flex items-center justify-center shadow-md ${avatar.design}`}>
-        {avatarIcon}
+        {icons[avatar.icon] || icons.star}
         {avatar.type === 'pattern' && (
           <div className="absolute inset-0 rounded-full opacity-20 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.2)_0%,_transparent_40%,_transparent_100%)]"></div>
         )}
