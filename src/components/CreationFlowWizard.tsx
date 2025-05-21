@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge, Module, Task, Concept } from '../types';
 import CreationGuidanceTip from './CreationGuidanceTip';
 
@@ -12,7 +12,7 @@ interface ExtendedBadge extends Partial<Badge> {
 interface CreationFlowWizardProps {
   onSaveBadge: (badge: ExtendedBadge) => Partial<Badge> | undefined;
   onSaveModule: (module: Partial<Module>) => Partial<Module> | undefined;
-  onSaveTask: (task: Partial<Task>) => void;
+  onSaveTask: (task: Partial<Task>) => Task;
   onClose: () => void;
   badges: Badge[];
   modules: Module[];
@@ -56,8 +56,21 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
     moduleId: ''
   });
 
-  const [createdBadgeId, setCreatedBadgeId] = useState<string | null>(null);
-  const [createdModuleId, setCreatedModuleId] = useState<string | null>(null);
+  // Track created items directly with their full object, not just IDs
+  const [createdBadge, setCreatedBadge] = useState<Badge | null>(null);
+  const [createdModule, setCreatedModule] = useState<Module | null>(null);
+  
+  const [localBadges, setLocalBadges] = useState<Badge[]>(badges);
+  const [localModules, setLocalModules] = useState<Module[]>(modules);
+  
+  // Update local arrays when props change
+  useEffect(() => {
+    setLocalBadges(badges);
+  }, [badges]);
+  
+  useEffect(() => {
+    setLocalModules(modules);
+  }, [modules]);
 
   // Determine if we can proceed to the next step
   const canProceed = () => {
@@ -65,9 +78,9 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
       case 1: // Badge step
         return badge.title && badge.description;
       case 2: // Module step
-        return module.title && module.description;
+        return module.title && module.description && module.badgeId;
       case 3: // Task step
-        return task.title && task.description;
+        return task.title && task.description && task.moduleId;
       default:
         return false;
     }
@@ -83,39 +96,114 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
       conceptToSave = badge.newConcept.trim();
     }
     
-    const savedBadge = onSaveBadge({
+    // Initialize requiredToComplete array if needed
+    const badgeToSave = {
       ...badge,
-      concept: conceptToSave || undefined
-    });
+      concept: conceptToSave || undefined,
+      requiredToComplete: []  // Initialize empty array for now
+    };
+    
+    const savedBadge = onSaveBadge(badgeToSave);
     
     if (savedBadge && typeof savedBadge === 'object' && 'id' in savedBadge) {
-      setCreatedBadgeId(savedBadge.id as string);
-      // Update module form with the newly created badge
-      setModule(prev => ({
-        ...prev,
-        badgeId: savedBadge.id as string
-      }));
+      // Store the complete badge object
+      const newBadge = savedBadge as Badge;
+      
+      // Update module with correct badge ID
+      setModule({
+        ...module,
+        badgeId: newBadge.id
+      });
+      
+      // Store created badge as complete object
+      setCreatedBadge(newBadge);
+      
+      // Add to local badge list if not present
+      if (!localBadges.some(b => b.id === newBadge.id)) {
+        setLocalBadges(prev => [...prev, newBadge]);
+      }
+      
+      // Move to next step
       setStep(2);
     }
   };
 
   // Handle module save and creation
   const handleSaveModule = () => {
-    const savedModule = onSaveModule(module);
+    // Ensure we have the correct badge ID from either state or created badge
+    const moduleToSave = {
+      ...module,
+      badgeId: createdBadge?.id || module.badgeId,
+      tasks: [] // Initialize empty tasks array
+    };
+    
+    const savedModule = onSaveModule(moduleToSave);
     if (savedModule && typeof savedModule === 'object' && 'id' in savedModule) {
-      setCreatedModuleId(savedModule.id as string);
-      // Update task form with the newly created module
-      setTask(prev => ({
-        ...prev,
-        moduleId: savedModule.id as string
-      }));
+      // Store the complete module object
+      const newModule = savedModule as Module;
+      
+      // Update task with correct module ID
+      setTask({
+        ...task,
+        moduleId: newModule.id
+      });
+      
+      // Store created module as complete object
+      setCreatedModule(newModule);
+      
+      // Add to local module list if not present
+      if (!localModules.some(m => m.id === newModule.id)) {
+        setLocalModules(prev => [...prev, newModule]);
+      }
+      
+      // Update the badge's requiredToComplete array to include this module
+      if (createdBadge) {
+        // Create a copy of the badge with updated requiredToComplete
+        const updatedBadge = {
+          ...createdBadge,
+          requiredToComplete: [...(createdBadge.requiredToComplete || []), newModule.id]
+        };
+        
+        // Save the updated badge to persist the changes
+        onSaveBadge(updatedBadge);
+        
+        // Update local state
+        setCreatedBadge(updatedBadge);
+        
+        // Update in local badges array
+        setLocalBadges(prev => 
+          prev.map(b => b.id === updatedBadge.id ? updatedBadge : b)
+        );
+      }
+      
+      // Move to next step
       setStep(3);
     }
   };
 
   // Handle task save and creation
   const handleSaveTask = () => {
-    onSaveTask(task);
+    // Make sure we have the correct module ID
+    const moduleId = createdModule?.id || module.id;
+    
+    // Ensure we have the correct module ID from either state or created module
+    const taskToSave = {
+      ...task,
+      moduleId: moduleId,
+      // Make sure this task has valid taskType and content
+      taskType: task.taskType || 'regular',
+      content: {
+        title: task.title || '',
+        taskType: task.taskType || 'regular',
+        sections: []
+      }
+    };
+    
+    // Call the parent handler to save the task
+    const savedTask = onSaveTask(taskToSave) as Task;
+    
+    console.log("Task saved successfully:", savedTask);
+    
     // Complete the wizard
     onClose();
   };
@@ -351,18 +439,31 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Badge</label>
-              <select
-                value={module.badgeId}
-                onChange={(e) => setModule({...module, badgeId: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                disabled={!!createdBadgeId} // Disable if we just created a badge
-              >
-                {badges.map(badgeItem => (
-                  <option key={badgeItem.id} value={badgeItem.id}>{badgeItem.title}</option>
-                ))}
-              </select>
-              {createdBadgeId && (
-                <p className="text-xs text-indigo-600 mt-1">This module will be part of the badge you just created.</p>
+              {createdBadge ? (
+                <div className="flex items-center">
+                  <div className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                    {createdBadge.title} {/* Use direct reference to created badge */}
+                  </div>
+                  <div className="ml-2 text-indigo-600">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+              ) : (
+                <select
+                  value={module.badgeId}
+                  onChange={(e) => setModule({...module, badgeId: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">-- Select Badge --</option>
+                  {localBadges.map(badgeItem => (
+                    <option key={badgeItem.id} value={badgeItem.id}>{badgeItem.title}</option>
+                  ))}
+                </select>
+              )}
+              {createdBadge && (
+                <p className="text-xs text-indigo-600 mt-1">This module will be part of the badge "{createdBadge.title}" you just created.</p>
               )}
             </div>
           </div>
@@ -409,18 +510,31 @@ const CreationFlowWizard: React.FC<CreationFlowWizardProps> = ({
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
-              <select
-                value={task.moduleId}
-                onChange={(e) => setTask({...task, moduleId: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                disabled={!!createdModuleId} // Disable if we just created a module
-              >
-                {modules.map(moduleItem => (
-                  <option key={moduleItem.id} value={moduleItem.id}>{moduleItem.title}</option>
-                ))}
-              </select>
-              {createdModuleId && (
-                <p className="text-xs text-indigo-600 mt-1">This task will be part of the module you just created.</p>
+              {createdModule ? (
+                <div className="flex items-center">
+                  <div className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                    {createdModule.title} {/* Use direct reference to created module */}
+                  </div>
+                  <div className="ml-2 text-indigo-600">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+              ) : (
+                <select
+                  value={task.moduleId}
+                  onChange={(e) => setTask({...task, moduleId: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">-- Select Module --</option>
+                  {localModules.map(moduleItem => (
+                    <option key={moduleItem.id} value={moduleItem.id}>{moduleItem.title}</option>
+                  ))}
+                </select>
+              )}
+              {createdModule && (
+                <p className="text-xs text-indigo-600 mt-1">This task will be part of the module "{createdModule.title}" you just created.</p>
               )}
             </div>
           </div>

@@ -1279,30 +1279,35 @@ export default function AdminPage() {
           
           <div className="divide-y">
             {filteredModules.length > 0 ? (
-              filteredModules.map(module => (
-                <div key={module.id} className="py-3 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">{module.title}</h3>
-                    <p className="text-sm text-gray-500">{module.tasks.length} tasks • Badge: {
-                      badges.find(b => b.id === module.badgeId)?.title || 'None'
-                    }</p>
+              filteredModules.map(module => {
+                // Find all tasks that belong to this module
+                const moduleTasks = tasks.filter(task => task.moduleId === module.id);
+                
+                return (
+                  <div key={module.id} className="py-3 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-medium">{module.title}</h3>
+                      <p className="text-sm text-gray-500">{moduleTasks.length} tasks • Badge: {
+                        badges.find(b => b.id === module.badgeId)?.title || 'None'
+                      }</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => handleEdit('module', module.id)}
+                        className="text-blue-500 hover:text-blue-700 text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDelete('module', module.id)}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleEdit('module', module.id)}
-                      className="text-blue-500 hover:text-blue-700 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => handleDelete('module', module.id)}
-                      className="text-red-500 hover:text-red-700 text-sm"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="py-4 text-center text-gray-500">
                 No modules found matching "{moduleSearchQuery}"
@@ -3010,22 +3015,40 @@ export default function AdminPage() {
             
             const badgeToSave: Badge = {
               ...badgeData as Badge,
-              concept: conceptId
+              id: badgeData.id || `badge${Date.now()}`,
+              modules: badgeData.modules || [],
+              concept: conceptId || undefined,
+              requiredToComplete: badgeData.requiredToComplete || []
             };
             
             const newBadge = mockDataHelpers.saveBadge(badgeToSave, isNew);
             
-            // Update the badge in the badges array to ensure it has the concept field
-            const badgeIndex = badges.findIndex(b => b.id === newBadge.id);
+            // Create a new badges array with the new badge
+            const updatedBadges = [...badges];
+            
+            // Update the badge in the badges array
+            const badgeIndex = updatedBadges.findIndex(b => b.id === newBadge.id);
             if (badgeIndex !== -1) {
-              badges[badgeIndex].concept = conceptId || undefined;
+              updatedBadges[badgeIndex] = {
+                ...updatedBadges[badgeIndex],
+                ...newBadge
+              };
+            } else {
+              // If badge wasn't found, add it to the array
+              updatedBadges.push(newBadge);
             }
+            
+            // Update state with the new badges array
+            setBadges(updatedBadges);
+            
+            // Update filtered badges
+            setFilteredBadges(updatedBadges);
             
             // Save to localStorage
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('customBadges', JSON.stringify(badges));
-                console.log('Saved badges to localStorage:', badges);
+                localStorage.setItem('customBadges', JSON.stringify(updatedBadges));
+                console.log('Saved badges to localStorage:', updatedBadges);
               } catch (e) {
                 console.error('Error saving to localStorage:', e);
               }
@@ -3035,13 +3058,38 @@ export default function AdminPage() {
           }}
           onSaveModule={(moduleData) => {
             const isNew = !moduleData.id;
-            const newModule = mockDataHelpers.saveModule(moduleData as Module, isNew);
+            
+            const moduleToSave: Module = {
+              ...moduleData as Module,
+              id: moduleData.id || `module${Date.now()}`,
+              tasks: moduleData.tasks || []
+            };
+            
+            const newModule = mockDataHelpers.saveModule(moduleToSave, isNew);
+            
+            // Create a new modules array with the new module
+            const updatedModules = [...modules];
+            
+            // Update the module in the modules array
+            const moduleIndex = updatedModules.findIndex(m => m.id === newModule.id);
+            if (moduleIndex !== -1) {
+              updatedModules[moduleIndex] = {
+                ...updatedModules[moduleIndex],
+                ...newModule
+              };
+            } else {
+              // If module wasn't found, add it to the array
+              updatedModules.push(newModule);
+            }
+            
+            // Update state with the new modules array
+            setModules(updatedModules);
             
             // Save to localStorage
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('customModules', JSON.stringify(modules));
-                console.log('Saved modules to localStorage:', modules);
+                localStorage.setItem('customModules', JSON.stringify(updatedModules));
+                console.log('Saved modules to localStorage:', updatedModules);
               } catch (e) {
                 console.error('Error saving to localStorage:', e);
               }
@@ -3051,13 +3099,73 @@ export default function AdminPage() {
           }}
           onSaveTask={(taskData) => {
             const isNew = !taskData.id;
-            const newTask = mockDataHelpers.saveTask(taskData as Task, isNew);
             
-            // Save to localStorage
+            const taskToSave: Task = {
+              ...taskData as Task,
+              id: taskData.id || `task${Date.now()}`
+            };
+            
+            const newTask = mockDataHelpers.saveTask(taskToSave, isNew);
+            
+            // Create a new tasks array with the new task
+            const updatedTasks = [...tasks];
+            
+            // Update the task in the tasks array
+            const taskIndex = updatedTasks.findIndex(t => t.id === newTask.id);
+            if (taskIndex !== -1) {
+              updatedTasks[taskIndex] = {
+                ...updatedTasks[taskIndex],
+                ...newTask
+              };
+            } else {
+              // If task wasn't found, add it to the array
+              updatedTasks.push(newTask);
+            }
+            
+            // Update state with the new tasks array
+            setTasks(updatedTasks);
+            
+            // Also make sure the module knows about this task
+            if (taskData.moduleId) {
+              const moduleIndex = modules.findIndex(m => m.id === taskData.moduleId);
+              if (moduleIndex !== -1) {
+                // Create a copy of the modules array
+                const updatedModules = [...modules];
+                
+                // Make sure the module has a tasks array
+                if (!updatedModules[moduleIndex].tasks) {
+                  updatedModules[moduleIndex].tasks = [];
+                }
+                
+                // Check if task already exists in the module
+                const taskExists = updatedModules[moduleIndex].tasks.some(t => t.id === newTask.id);
+                
+                // Only add if it doesn't already exist
+                if (!taskExists) {
+                  updatedModules[moduleIndex].tasks.push(newTask);
+                  setModules(updatedModules);
+                  
+                  // Save the updated modules to localStorage
+                  localStorage.setItem('customModules', JSON.stringify(updatedModules));
+                  console.log('Updated modules after adding task:', updatedModules);
+                }
+              }
+            }
+            
+            // Save tasks to localStorage
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('customTasks', JSON.stringify(tasks));
-                console.log('Saved tasks to localStorage:', tasks);
+                localStorage.setItem('customTasks', JSON.stringify(updatedTasks));
+                console.log('Saved tasks to localStorage:', updatedTasks);
+                
+                // Update both arrays in memory and localStorage after creation
+                setTasks(updatedTasks);
+                
+                // Force refresh the UI by re-querying localStorage
+                const storedModules = JSON.parse(localStorage.getItem('customModules') || '[]');
+                if (storedModules.length > 0) {
+                  setModules(storedModules);
+                }
               } catch (e) {
                 console.error('Error saving to localStorage:', e);
               }
@@ -3065,7 +3173,22 @@ export default function AdminPage() {
             
             return newTask;
           }}
-          onClose={() => setShowFlowWizard(false)}
+          onClose={() => {
+            setShowFlowWizard(false);
+            // Force reload data from localStorage to ensure everything is up to date
+            if (typeof window !== 'undefined') {
+              const storedBadges = JSON.parse(localStorage.getItem('customBadges') || '[]');
+              const storedModules = JSON.parse(localStorage.getItem('customModules') || '[]');
+              const storedTasks = JSON.parse(localStorage.getItem('customTasks') || '[]');
+              
+              if (storedBadges.length > 0) setBadges(storedBadges);
+              if (storedModules.length > 0) setModules(storedModules);
+              if (storedTasks.length > 0) setTasks(storedTasks);
+              
+              // Update filtered badges
+              setFilteredBadges(storedBadges.length > 0 ? storedBadges : badges);
+            }
+          }}
           badges={badges}
           modules={modules}
           concepts={concepts}

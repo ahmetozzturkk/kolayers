@@ -319,6 +319,19 @@ if (typeof window !== 'undefined') {
         sessionStorage.setItem(`task_content_${task.id}`, JSON.stringify(task.content));
       }
     });
+    
+    // Initialize localStorage with default data if empty
+    if (!localStorage.getItem('customTasks')) {
+      localStorage.setItem('customTasks', JSON.stringify(tasks));
+    }
+    
+    if (!localStorage.getItem('customModules')) {
+      localStorage.setItem('customModules', JSON.stringify(modules));
+    }
+    
+    if (!localStorage.getItem('customBadges')) {
+      localStorage.setItem('customBadges', JSON.stringify(badges));
+    }
   } catch (e) {
     console.error('Error saving task content to storage:', e);
   }
@@ -405,7 +418,11 @@ export const mockDataHelpers = {
           if (!modules[moduleIndex].tasks) {
             modules[moduleIndex].tasks = [];
           }
-          modules[moduleIndex].tasks.push(task);
+          // Check if the task already exists in the module's tasks array to prevent duplicates
+          const taskExists = modules[moduleIndex].tasks.some(t => t.id === task.id);
+          if (!taskExists) {
+            modules[moduleIndex].tasks.push(task);
+          }
         }
       }
       
@@ -430,7 +447,11 @@ export const mockDataHelpers = {
             if (taskIndex !== -1) {
               modules[moduleIndex].tasks[taskIndex] = tasks[index];
             } else {
-              modules[moduleIndex].tasks.push(tasks[index]);
+              // Check if the task already exists in the module's tasks array to prevent duplicates
+              const taskExists = modules[moduleIndex].tasks.some(t => t.id === task.id);
+              if (!taskExists) {
+                modules[moduleIndex].tasks.push(tasks[index]);
+              }
             }
           }
         }
