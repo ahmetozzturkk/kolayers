@@ -2,6 +2,7 @@ import React from 'react';
 import './globals.css';
 import ClientNoFooter from '../components/ClientNoFooter';
 import TaskContentInitializer from '../components/TaskContentInitializer';
+import IntercomChat from '../components/IntercomChat';
 
 export const metadata = {
   title: 'Kolayers - The Winners Platform',
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen flex flex-col bg-gray-50">
         <TaskContentInitializer />
+        <IntercomChat />
         <main className="flex-grow">
           {children}
         </main>
