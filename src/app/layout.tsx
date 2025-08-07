@@ -3,6 +3,7 @@ import './globals.css';
 import ClientNoFooter from '../components/ClientNoFooter';
 import TaskContentInitializer from '../components/TaskContentInitializer';
 import IntercomChat from '../components/IntercomChat';
+import YourGPTWidget from '../components/YourGPTWidget';
 
 export const metadata = {
   title: 'Kolayers - The Winners Platform',
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col bg-gray-50">
         <TaskContentInitializer />
         <IntercomChat />
+        <YourGPTWidget />
         <main className="flex-grow">
           {children}
         </main>
