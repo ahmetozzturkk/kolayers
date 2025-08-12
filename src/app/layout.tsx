@@ -4,6 +4,7 @@ import ClientNoFooter from '../components/ClientNoFooter';
 import TaskContentInitializer from '../components/TaskContentInitializer';
 import IntercomChat from '../components/IntercomChat';
 import YourGPTWidget from '../components/YourGPTWidget';
+import ZendeskWidget from '../components/ZendeskWidget';
 
 export const metadata = {
   title: 'Kolayers - The Winners Platform',
@@ -21,6 +22,7 @@ export default function RootLayout({
         <TaskContentInitializer />
         <IntercomChat />
         <YourGPTWidget />
+        <ZendeskWidget />
         <main className="flex-grow">
           {children}
         </main>
