@@ -7,7 +7,6 @@ interface UserData {
   name: string;
   ext_user_id: string;
   user_hash: string;
-  phone?: string;
 }
 
 export default function YourGPTWidget() {
@@ -55,8 +54,7 @@ export default function YourGPTWidget() {
             email: userData.email,
             name: userData.name,
             ext_user_id: userData.ext_user_id,
-            user_hash: userData.user_hash,
-            ...(userData.phone && { phone: userData.phone })
+            user_hash: userData.user_hash
           });
         }
       } else {

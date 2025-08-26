@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         email: true,
-        name: true,
-        phone: true
+        name: true
       }
     });
 
@@ -50,11 +49,6 @@ export async function GET(request: NextRequest) {
       ext_user_id: user.id,
       user_hash: userHash
     };
-
-    // Telefon varsa ekle
-    if (user.phone) {
-      userData.phone = user.phone;
-    }
 
     return NextResponse.json(userData);
   } catch (error) {
