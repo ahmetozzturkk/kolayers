@@ -83,6 +83,17 @@ NEXTAUTH_SECRET="your-nextauth-secret"
 NEXTAUTH_URL="https://your-deployment-url.com"
 ```
 
+3. Configure YourGPT widget for user authentication:
+```
+YOURGPT_SECRET_KEY="your-yourgpt-secret-key-from-dashboard"
+```
+
+**To get your YourGPT Secret Key:**
+- Go to your YourGPT Dashboard
+- Select your chatbot
+- Navigate to Widget → Settings
+- Copy the Secret Key
+
 ### 4. Deploy to Vercel
 
 1. Connect your GitHub repository to Vercel
