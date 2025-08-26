@@ -44,12 +44,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // HMAC hash oluştur (ext_user_id ile - en yüksek öncelik)
-    const hmacData = user.id; // ext_user_id kullanıyoruz
-    const userHash = crypto
-      .createHmac('sha256', YOURGPT_SECRET_KEY)
-      .update(hmacData)
-      .digest('hex');
+    // HMAC hash oluştur (YourGPT dokümantasyonuna göre)
+    const hmacData = user.id; // ext_user_id kullanıyoruz (en yüksek öncelik)
+    
+    // YourGPT'nin belirttiği HMAC algoritması
+    const generatedHash = crypto.createHmac('sha256', YOURGPT_SECRET_KEY);
+    generatedHash.write(hmacData);
+    generatedHash.end();
+    const userHash = generatedHash.read().toString('hex');
 
     console.log('🔐 YourGPT API Debug:', {
       userId: user.id,

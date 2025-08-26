@@ -81,17 +81,26 @@ export default function YourGPTWidget() {
             console.log('🎯 YourGPT: Widget bulundu, kullanıcı verisi gönderiliyor...');
             
             try {
-              (window as any).$yourgptChatbot.set("contact:data", {
+              // YourGPT dokümantasyonuna göre format
+              const contactData = {
                 email: userData.email,
                 name: userData.name,
                 ext_user_id: userData.ext_user_id,
                 user_hash: userData.user_hash
+              };
+              
+              console.log('📤 YourGPT: Gönderilen veri:', {
+                ...contactData,
+                user_hash: contactData.user_hash.substring(0, 10) + '...' // Güvenlik için kısalt
               });
+              
+              (window as any).$yourgptChatbot.set("contact:data", contactData);
               
               console.log('✅ YourGPT: Kullanıcı verisi başarıyla gönderildi!');
               return true;
             } catch (err) {
               console.error('❌ YourGPT: Kullanıcı verisi gönderme hatası:', err);
+              console.error('❌ Hata detayı:', err);
               return false;
             }
           } else {
@@ -140,6 +149,23 @@ export default function YourGPTWidget() {
     return () => {
       clearInterval(authCheckInterval);
       window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Global debug fonksiyonu (geliştirme için)
+  useEffect(() => {
+    (window as any).debugYourGPT = () => {
+      console.log('🔍 YourGPT Debug Başlatıldı...');
+      checkAuthAndSetUserData();
+    };
+    
+    (window as any).testYourGPTWidget = () => {
+      if ((window as any).$yourgptChatbot) {
+        console.log('✅ YourGPT Widget mevcut');
+        console.log('Widget objesi:', (window as any).$yourgptChatbot);
+      } else {
+        console.log('❌ YourGPT Widget bulunamadı');
+      }
     };
   }, []);
 
