@@ -8,6 +8,15 @@ const YOURGPT_SECRET_KEY = process.env.YOURGPT_SECRET_KEY || '';
 
 export async function GET(request: NextRequest) {
   try {
+    // Secret key kontrolü
+    if (!YOURGPT_SECRET_KEY) {
+      console.error('❌ YourGPT: Secret key bulunamadı!');
+      return NextResponse.json(
+        { error: 'YourGPT secret key not configured' },
+        { status: 500 }
+      );
+    }
+
     // Kullanıcının authenticate olup olmadığını kontrol et
     const userId = await verifyAuth(request);
     
@@ -35,12 +44,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // HMAC hash oluştur (email ile)
-    const hmacData = user.email;
+    // HMAC hash oluştur (ext_user_id ile - en yüksek öncelik)
+    const hmacData = user.id; // ext_user_id kullanıyoruz
     const userHash = crypto
       .createHmac('sha256', YOURGPT_SECRET_KEY)
       .update(hmacData)
       .digest('hex');
+
+    console.log('🔐 YourGPT API Debug:', {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      hmacData: hmacData,
+      secretKeyLength: YOURGPT_SECRET_KEY.length,
+      generatedHash: userHash.substring(0, 10) + '...'
+    });
 
     // YourGPT için kullanıcı verilerini hazırla
     const userData = {
