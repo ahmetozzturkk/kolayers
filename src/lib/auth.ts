@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
@@ -16,9 +17,10 @@ export async function verifyAuth(request: NextRequest): Promise<string | null> {
       return null;
     }
     
-    // Verify the token
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    return decoded.userId;
+    // Verify the token using jose (same library as used in registration)
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
+    return payload.id as string;
   } catch (error) {
     console.error('Auth verification error:', error);
     return null;

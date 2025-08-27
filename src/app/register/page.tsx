@@ -89,8 +89,8 @@ export default function RegisterPage() {
         console.log('Initialized localStorage for new user');
       }
       
-      // Registration successful, redirect to dashboard or login
-      router.push('/login');
+      // Registration successful, redirect to dashboard
+      router.push('/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');

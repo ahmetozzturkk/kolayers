@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     };
     
     // Create token using jose
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'fallback-secret');
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
     const token = await new jose.SignJWT(payload)
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('7d')
