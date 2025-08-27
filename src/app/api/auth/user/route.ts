@@ -4,10 +4,21 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 API /auth/user: Starting authentication check...');
+    
+    // Check for token in cookies
+    const token = request.cookies.get('token')?.value;
+    console.log('🍪 API /auth/user: Token exists?', !!token);
+    if (token) {
+      console.log('🍪 API /auth/user: Token preview:', token.substring(0, 20) + '...');
+    }
+    
     // Verify authentication
     const userId = await verifyAuth(request);
+    console.log('👤 API /auth/user: UserId from verifyAuth:', userId);
     
     if (!userId) {
+      console.log('❌ API /auth/user: Authentication failed - returning 401');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

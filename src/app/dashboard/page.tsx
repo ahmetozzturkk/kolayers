@@ -31,10 +31,12 @@ export default function DashboardPage() {
     async function loadUser() {
       try {
         setLoading(true);
+        console.log('🔍 Dashboard: Loading user...');
         const userData = await getCurrentUser();
+        console.log('👤 Dashboard: User data received:', userData);
         setUser(userData);
       } catch (error) {
-        console.error('Failed to load user:', error);
+        console.error('❌ Dashboard: Failed to load user:', error);
       } finally {
         setLoading(false);
       }

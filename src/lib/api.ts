@@ -38,19 +38,26 @@ export async function signupUser(name: string, email: string, password: string) 
 }
 
 export async function getCurrentUser() {
+  console.log('🔍 API: getCurrentUser called');
+  
   const response = await fetch('/api/auth/user');
+  console.log('📡 API: Response status:', response.status);
   
   if (!response.ok) {
     // If 401, user is not logged in
     if (response.status === 401) {
+      console.log('🔒 API: User not authenticated (401)');
       return null;
     }
     
     const error = await response.json();
+    console.log('❌ API: Error response:', error);
     throw new Error(error.error || 'Failed to get current user');
   }
   
-  return response.json();
+  const userData = await response.json();
+  console.log('✅ API: User data:', userData);
+  return userData;
 }
 
 export async function updateUserProfile(data: { name?: string; image?: string }) {
